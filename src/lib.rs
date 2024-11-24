@@ -1,4 +1,5 @@
-mod services;
+pub mod services;
+pub mod types;
 
 use btleplug::api::{Central, CharPropFlags, Manager as _, Peripheral, ScanFilter};
 use btleplug::platform::Manager;
@@ -7,7 +8,6 @@ use services::Service;
 use std::error::Error;
 use std::time::Duration;
 use tokio::time;
-use uuid::Uuid;
 
 const PERIPHERAL_NAME_MATCH_PREFIX_FILTER: &str = "PM5";
 

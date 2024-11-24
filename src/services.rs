@@ -110,6 +110,7 @@ impl Service for Heartrate {
 }
 
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
