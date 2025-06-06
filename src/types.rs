@@ -1,3 +1,37 @@
+// u24, little-endian
+pub struct Time(u32);
+pub struct LogEntryTime(u16);
+pub struct LogEntryDate(u16);
+pub struct StrokeRecoveryTime(u16);
+// u24, little-endian
+pub struct Distance(u32);
+pub struct RestTime(u16);
+pub struct RestDistance(u16);
+pub struct Pace(u16);
+pub struct Speed(u16);
+pub struct StrokeRate(u8);
+pub struct HeartRate(u8);
+pub struct DragFactor(u8);
+pub struct IntervalCount(u8);
+pub struct Power(u16);
+pub struct DriveLength(u8);
+pub struct DriveTime(u8);
+pub struct Calories(u16);
+pub struct StrokeDistance(u16);
+pub struct Force(u16);
+pub struct Work(u16);
+pub struct Size(u8);
+pub struct StrokeCount(u16);
+pub struct GameId(u8);
+pub struct GameScore(u16);
+pub enum SampleRate {
+    Slow,    // 0x0001
+    Default, // 0x0001
+    Fast,    // 0x0002
+    Fastest, // 0x0003
+}
+pub struct ForceCurveData(Vec<Force>);
+
 pub enum OperationalState {
     /// Reset state (0).
     Reset,
@@ -122,7 +156,7 @@ pub enum WorkoutType {
     Num,
 }
 
-pub enum IntervalType { 
+pub enum IntervalType {
     /// Time interval type (0).
     Time,
     /// Distance interval type (1).
@@ -138,13 +172,13 @@ pub enum IntervalType {
     /// Calorie interval type (6).
     Calorie,
     /// Calorie undefined rest interval type (7).
-    CalorierestUndefined ,
+    CalorierestUndefined,
     /// Watt-minute interval type (8).
     Wattminute,
     /// Watt-minute undefined rest interval type (9).
     WattminuterestUndefined,
     /// No interval type (255 ).
-    None = 255
+    None = 255,
 }
 
 pub enum WorkoutState {
@@ -195,14 +229,14 @@ pub enum StrokeState {
     /// Dwelling after drive state (3).
     DwellingAfterDriveState,
     /// Recovery state (4).
-    RecoveryState
+    RecoveryState,
 }
 
 pub enum WorkoutDurationType {
     Time = 0,
     Calories = 0x40,
     Distance = 0x80,
-    WattMin = 0xC0
+    WattMin = 0xC0,
 }
 
 pub enum DisplayUnitType {
@@ -215,7 +249,7 @@ pub enum DisplayUnitType {
     /// Caloric burn rate display units (3).
     CaloricBurnRate,
     /// Calorie display units (4).
-    Calories
+    Calories,
 }
 
 pub enum DisplayFormatType {
@@ -230,7 +264,7 @@ pub enum DisplayFormatType {
     /// Large format display type (4).
     Simple,
     /// Target display type (5).
-    Target
+    Target,
 }
 
 pub enum WorkoutNumber {
@@ -267,7 +301,7 @@ pub enum WorkoutNumber {
     /// Favorite list 5 (15).
     Msd5,
     /// Number of workouts (16).
-    Num
+    Num,
 }
 
 pub enum WorkoutProgrammingMode {
@@ -298,7 +332,7 @@ pub enum StartType {
     /// Immediate type (3).
     Immediate,
     /// Wait for flywheel type (4).
-    WaitForFlyWheel
+    WaitForFlyWheel,
 }
 
 pub enum RaceOperationType {
@@ -429,7 +463,7 @@ pub enum RaceType {
     /// Fixed time, calorie score, individual type (35).
     FixeddistTimecapSingleerg,
     /// Fixed time, calorie score, team type (36).
-    FixedcalTimecapSingleerg
+    FixedcalTimecapSingleerg,
 }
 
 pub enum RaceStartState {
@@ -448,7 +482,7 @@ pub enum RaceStartState {
     /// Row state (6).
     Row,
     /// False start state (7).
-    FalseStart
+    FalseStart,
 }
 
 pub enum ScreenType {
@@ -560,7 +594,7 @@ pub enum ScreenValueWorkoutType {
     /// Tach simulator enable, rate = random (55).
     TachSimEnableRateRandom,
     /// Screen redraw (255).
-    ScreenRedraw = 255
+    ScreenRedraw = 255,
 }
 
 pub enum ScreenValueRaceType {
@@ -635,7 +669,7 @@ pub enum ScreenValueRaceType {
     /// Tach simulator enable, rate = random (49).
     TachSimEnableRateRandom,
     /// Screen redraw (255).
-    ScreenRedraw = 255
+    ScreenRedraw = 255,
 }
 
 pub enum ScreenValueCsafe {
@@ -654,7 +688,7 @@ pub enum ScreenValueCsafe {
     /// Close racing channel (251).
     RaceChanClose = 251,
     /// Screen redraw (255).
-    ScreenRedraw = 255
+    ScreenRedraw = 255,
 }
 
 pub enum ScreenStatus {
@@ -708,5 +742,5 @@ pub enum DisplayUpdateRate {
     /// 4Hz (1).
     Hz4,
     /// 2Hz (2).
-    Hz2
+    Hz2,
 }

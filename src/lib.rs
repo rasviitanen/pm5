@@ -20,7 +20,7 @@ impl App {
         if adapter_list.is_empty() {
             eprintln!("No Bluetooth adapters found");
         }
-    
+
         for adapter in adapter_list.iter() {
             println!("Starting scan...");
             adapter
@@ -29,7 +29,7 @@ impl App {
                 .expect("Can't scan BLE adapter for connected devices...");
             time::sleep(Duration::from_secs(2)).await;
             let peripherals = adapter.peripherals().await?;
-    
+
             if peripherals.is_empty() {
                 eprintln!("->>> BLE peripheral devices were not found, sorry. Exiting...");
             } else {
@@ -70,7 +70,10 @@ impl App {
                                 if (characteristic.uuid == services::Rowing::GeneralStatus.id())
                                     && characteristic.properties.contains(CharPropFlags::NOTIFY)
                                 {
-                                    println!("Subscribing to characteristic {:?}", characteristic.uuid);
+                                    println!(
+                                        "Subscribing to characteristic {:?}",
+                                        characteristic.uuid
+                                    );
                                     peripheral.subscribe(&characteristic).await?;
                                     // Print the first 4 notifications received.
                                     let mut notification_stream =
