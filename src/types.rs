@@ -1,37 +1,210 @@
+use num_enum::TryFromPrimitive;
+
+mod privat {
+    use std::io::Read;
+
+    use super::*;
+    use byteorder::{LittleEndian, ReadBytesExt};
+
+    impl crate::parse::Parse for U24 {
+        fn parse(cursor: &mut std::io::Cursor<Vec<u8>>) -> Result<Self, crate::parse::ParseError> {
+            Ok(Self(cursor.read_u24::<LittleEndian>()?))
+        }
+    }
+
+    impl crate::parse::Parse for u32 {
+        fn parse(cursor: &mut std::io::Cursor<Vec<u8>>) -> Result<Self, crate::parse::ParseError> {
+            Ok(cursor.read_u32::<LittleEndian>()?)
+        }
+    }
+
+    impl crate::parse::Parse for u16 {
+        fn parse(cursor: &mut std::io::Cursor<Vec<u8>>) -> Result<Self, crate::parse::ParseError> {
+            Ok(cursor.read_u16::<LittleEndian>()?)
+        }
+    }
+
+    impl crate::parse::Parse for u8 {
+        fn parse(cursor: &mut std::io::Cursor<Vec<u8>>) -> Result<Self, crate::parse::ParseError> {
+            Ok(cursor.read_u8()?)
+        }
+    }
+
+    impl crate::parse::Parse for ForceCurveData {
+        fn parse(cursor: &mut std::io::Cursor<Vec<u8>>) -> Result<Self, crate::parse::ParseError> {
+            let mut bytes = Vec::new();
+            cursor.read_to_end(&mut bytes)?;
+            let mut out = Vec::with_capacity(bytes.len() / 2);
+            let mut iter_bytes = bytes.into_iter();
+            while let Some(a) = iter_bytes.next() {
+                let b = iter_bytes
+                    .next()
+                    .ok_or(crate::parse::ParseError::UnexpectedNumberOfBytes)?;
+                let force = Force(u16::from_le_bytes([a, b]));
+                out.push(force);
+            }
+            Ok(ForceCurveData(out))
+        }
+    }
+
+    macro_rules! impl_parse_struct_type {
+        ( $( $x:path ),* $(,)? ) => {
+            $(impl crate::parse::Parse for $x {
+                fn parse(cursor: &mut std::io::Cursor<Vec<u8>>) -> Result<Self, crate::parse::ParseError> {
+                Ok(Self(crate::parse::Parse::parse(cursor)?))
+                }
+            })*
+        };
+    }
+
+    impl_parse_struct_type![
+        Time,
+        LogEntryTime,
+        LogEntryDate,
+        StrokeRecoveryTime,
+        Distance,
+        RestTime,
+        RestDistance,
+        Pace,
+        Speed,
+        StrokeRate,
+        HeartRate,
+        DragFactor,
+        IntervalCount,
+        Power,
+        DriveLength,
+        DriveTime,
+        Calories,
+        StrokeDistance,
+        Force,
+        Work,
+        Size,
+        StrokeCount,
+        GameId,
+        GameScore,
+    ];
+
+    macro_rules! impl_parse_enum_type {
+        ( $( $x:path ),* $(,)? ) => {
+            $(impl crate::parse::Parse for $x {
+                fn parse(cursor: &mut std::io::Cursor<Vec<u8>>) -> Result<Self, crate::parse::ParseError> {
+                    let v: u8 = crate::parse::Parse::parse(cursor)?;
+                    Ok(Self::try_from(v).map_err(|_err| crate::parse::ParseError::Variant)?)
+                }
+            })*
+        };
+    }
+
+    impl_parse_enum_type![
+        OperationalState,
+        ErgModelType,
+        ErgMachineType,
+        WorkoutType,
+        IntervalType,
+        WorkoutState,
+        RowingState,
+        StrokeState,
+        WorkoutDurationType,
+        DisplayUnitType,
+        DisplayFormatType,
+        WorkoutNumber,
+        WorkoutProgrammingMode,
+        StrokeRateState,
+        StartType,
+        RaceOperationType,
+        RaceState,
+        RaceType,
+        RaceStartState,
+        ScreenType,
+        ScreenValueWorkoutType,
+        ScreenValueRaceType,
+        ScreenValueCsafe,
+        ScreenStatus,
+        StatusType,
+        DisplayUpdateRate,
+    ];
+}
+
+#[derive(Default, Debug)]
+pub struct U24(u32);
+
+impl std::ops::Deref for U24 {
+    type Target = u32;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl std::ops::DerefMut for U24 {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 // u24, little-endian
-pub struct Time(u32);
-pub struct LogEntryTime(u16);
-pub struct LogEntryDate(u16);
-pub struct StrokeRecoveryTime(u16);
+#[derive(Default, Debug)]
+pub struct Time(pub U24);
+#[derive(Default, Debug)]
+pub struct LogEntryTime(pub u16);
+#[derive(Default, Debug)]
+pub struct LogEntryDate(pub u16);
+#[derive(Default, Debug)]
+pub struct StrokeRecoveryTime(pub u16);
 // u24, little-endian
-pub struct Distance(u32);
-pub struct RestTime(u16);
-pub struct RestDistance(u16);
-pub struct Pace(u16);
-pub struct Speed(u16);
-pub struct StrokeRate(u8);
-pub struct HeartRate(u8);
-pub struct DragFactor(u8);
-pub struct IntervalCount(u8);
-pub struct Power(u16);
-pub struct DriveLength(u8);
-pub struct DriveTime(u8);
-pub struct Calories(u16);
-pub struct StrokeDistance(u16);
-pub struct Force(u16);
-pub struct Work(u16);
-pub struct Size(u8);
-pub struct StrokeCount(u16);
-pub struct GameId(u8);
-pub struct GameScore(u16);
+#[derive(Default, Debug)]
+pub struct Distance(pub U24);
+#[derive(Default, Debug)]
+pub struct RestTime(pub u16);
+#[derive(Default, Debug)]
+pub struct RestDistance(pub u16);
+#[derive(Default, Debug)]
+pub struct Pace(pub u16);
+#[derive(Default, Debug)]
+pub struct Speed(pub u16);
+#[derive(Default, Debug)]
+pub struct StrokeRate(pub u8);
+#[derive(Default, Debug)]
+pub struct HeartRate(pub u8);
+#[derive(Default, Debug)]
+pub struct DragFactor(pub u8);
+#[derive(Default, Debug)]
+pub struct IntervalCount(pub u8);
+#[derive(Default, Debug)]
+pub struct Power(pub u16);
+#[derive(Default, Debug)]
+pub struct DriveLength(pub u8);
+#[derive(Default, Debug)]
+pub struct DriveTime(pub u8);
+#[derive(Default, Debug)]
+pub struct Calories(pub u16);
+#[derive(Default, Debug)]
+pub struct StrokeDistance(pub u16);
+#[derive(Default, Debug)]
+pub struct Force(pub u16);
+#[derive(Default, Debug)]
+pub struct Work(pub u16);
+#[derive(Default, Debug)]
+pub struct Size(pub u8);
+#[derive(Default, Debug)]
+pub struct StrokeCount(pub u16);
+#[derive(Default, Debug)]
+pub struct GameId(pub u8);
+#[derive(Default, Debug)]
+pub struct GameScore(pub u16);
+
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum SampleRate {
     Slow,    // 0x0001
     Default, // 0x0001
     Fast,    // 0x0002
     Fastest, // 0x0003
 }
-pub struct ForceCurveData(Vec<Force>);
+#[derive(Debug)]
+pub struct ForceCurveData(pub Vec<Force>);
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum OperationalState {
     /// Reset state (0).
     Reset,
@@ -65,6 +238,8 @@ pub enum OperationalState {
     Dfcalibration = 100,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum ErgModelType {
     /// Model D/E type (0).
     TypeD,
@@ -74,6 +249,8 @@ pub enum ErgModelType {
     TypeA,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum ErgMachineType {
     /// Model D, static type (0).
     StaticD,
@@ -125,6 +302,8 @@ pub enum ErgMachineType {
     Num,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum WorkoutType {
     /// JustRow, no splits (0).
     JustrowNosplits,
@@ -156,6 +335,8 @@ pub enum WorkoutType {
     Num,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum IntervalType {
     /// Time interval type (0).
     Time,
@@ -181,6 +362,8 @@ pub enum IntervalType {
     None = 255,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum WorkoutState {
     /// Wait to begin state (0).
     WaitToBegin,
@@ -212,6 +395,8 @@ pub enum WorkoutState {
     Rearm,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum RowingState {
     /// Inactive (0).
     Inactive,
@@ -219,6 +404,8 @@ pub enum RowingState {
     Active,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum StrokeState {
     /// FW to reach min speed state (0).
     WaitingForWheelToReachMinSpeedState,
@@ -232,6 +419,8 @@ pub enum StrokeState {
     RecoveryState,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum WorkoutDurationType {
     Time = 0,
     Calories = 0x40,
@@ -239,6 +428,8 @@ pub enum WorkoutDurationType {
     WattMin = 0xC0,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum DisplayUnitType {
     /// Time/meters display units (0).
     TimeMeters,
@@ -252,6 +443,8 @@ pub enum DisplayUnitType {
     Calories,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum DisplayFormatType {
     /// Standard display type (0).
     Standard,
@@ -267,6 +460,8 @@ pub enum DisplayFormatType {
     Target,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum WorkoutNumber {
     /// Programmed (0).
     Programmed,
@@ -304,6 +499,8 @@ pub enum WorkoutNumber {
     Num,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum WorkoutProgrammingMode {
     /// Disable (0).
     Disable,
@@ -311,6 +508,8 @@ pub enum WorkoutProgrammingMode {
     Enable,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum StrokeRateState {
     /// Idle state (0).
     Idle,
@@ -322,6 +521,8 @@ pub enum StrokeRateState {
     Decreasing,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum StartType {
     /// Random type (0).
     Random,
@@ -335,6 +536,8 @@ pub enum StartType {
     WaitForFlyWheel,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum RaceOperationType {
     /// Disable type (0).
     Disable,
@@ -368,6 +571,8 @@ pub enum RaceOperationType {
     TachSimDisable,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum RaceState {
     /// Race idle state (0).
     Idle,
@@ -389,6 +594,8 @@ pub enum RaceState {
     Inactive,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum RaceType {
     /// Fixed distance, individual type (0).
     FixeddistSingleerg,
@@ -466,6 +673,8 @@ pub enum RaceType {
     FixedcalTimecapSingleerg,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum RaceStartState {
     /// Init state (0).
     Init,
@@ -485,6 +694,8 @@ pub enum RaceStartState {
     FalseStart,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum ScreenType {
     // FIXME:(rasviitanen) weird None value here should probably eq 0. Should recheck the spec.
     None,
@@ -500,6 +711,8 @@ pub enum ScreenType {
     Mfg,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum ScreenValueWorkoutType {
     /// None value (0).
     None,
@@ -597,6 +810,8 @@ pub enum ScreenValueWorkoutType {
     ScreenRedraw = 255,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum ScreenValueRaceType {
     /// None value (0).
     None,
@@ -672,6 +887,8 @@ pub enum ScreenValueRaceType {
     ScreenRedraw = 255,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum ScreenValueCsafe {
     /// None value (0).
     None,
@@ -691,12 +908,16 @@ pub enum ScreenValueCsafe {
     ScreenRedraw = 255,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum ScreenStatus {
     Inactive,
     Pending,
     Inprogress,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum StatusType {
     /// None (0).
     None,
@@ -736,6 +957,8 @@ pub enum StatusType {
     ServiceCalibrationWarning,
 }
 
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[repr(u8)]
 pub enum DisplayUpdateRate {
     /// 5Hz (0).
     Hz5,

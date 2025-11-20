@@ -1,6 +1,38 @@
+use std::io::Cursor;
+
 use uuid::Uuid;
 
-use crate::types::*;
+use crate::{parse::Parse, types::*};
+
+pub enum Pm5 {
+    Information(Information),
+    Control(Control),
+    Rowing(Rowing),
+    HeartRate(HeartRate),
+}
+
+impl Pm5 {
+    pub fn rowing() -> &'static [Rowing] {
+        &[Rowing::GeneralStatus, Rowing::StrokeData]
+    }
+}
+
+#[derive(Debug)]
+pub enum Pm5Data {
+    Rowing(RowingData),
+}
+
+impl ServiceData for Pm5 {
+    type Data = Pm5Data;
+
+    fn parse(uuid: Uuid, data: Vec<u8>) -> Result<Self::Data, ServiceDataError> {
+        if Rowing::characteristic_is_part_of_service(uuid) {
+            Rowing::parse(uuid, data).map(Pm5Data::Rowing)
+        } else {
+            Err(ServiceDataError::UnkownService)
+        }
+    }
+}
 
 pub enum Information {
     ModelNumber,
@@ -16,6 +48,7 @@ pub enum Control {
     Transmit,
 }
 
+#[derive(Debug)]
 pub enum Rowing {
     GeneralStatus,
     AdditionalStatusOne,
@@ -34,6 +67,7 @@ pub enum Rowing {
     MultiplexedInformation,
 }
 
+#[derive(Debug)]
 pub enum RowingData {
     GeneralStatus {
         elapsed_time: Time,
@@ -168,6 +202,79 @@ pub trait Service {
     const UUID: Uuid;
 
     fn id(&self) -> Uuid;
+
+    fn characteristic_is_part_of_service(characteristic: Uuid) -> bool {
+        Self::UUID.as_u128() == (characteristic.as_u128() & !(0x000F << 96))
+    }
+}
+
+#[cfg(test)]
+mod tests22 {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_name22() {
+        let uuid = Uuid::from_str("ce060031-43e5-11e4-916c-0800200c9a66").unwrap();
+        println!("{}", Uuid::from_u128(uuid.as_u128() & !(0x000F << 96)));
+    }
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum ServiceDataError {
+    #[error("invalid bytes")]
+    Data(#[from] crate::parse::ParseError),
+    #[error("invalid id")]
+    Id,
+    #[error("unknown service")]
+    UnkownService,
+}
+
+pub trait ServiceData {
+    type Data;
+
+    fn parse(uuid: Uuid, data: Vec<u8>) -> Result<Self::Data, ServiceDataError>;
+}
+
+impl ServiceData for Rowing {
+    type Data = RowingData;
+
+    fn parse(uuid: Uuid, data: Vec<u8>) -> Result<Self::Data, ServiceDataError> {
+        let mut data = Cursor::new(data);
+        if Rowing::GeneralStatus.id() == uuid {
+            return Ok(RowingData::GeneralStatus {
+                elapsed_time: Parse::parse(&mut data)?,
+                distance: Parse::parse(&mut data)?,
+                workout_type: Parse::parse(&mut data)?,
+                interval_type: Parse::parse(&mut data)?,
+                workout_state: Parse::parse(&mut data)?,
+                rowing_state: Parse::parse(&mut data)?,
+                stroke_state: Parse::parse(&mut data)?,
+                total_work_distance: Parse::parse(&mut data)?,
+                workout_duration: Parse::parse(&mut data)?,
+                workout_duration_type: Parse::parse(&mut data)?,
+                drag_factor: Parse::parse(&mut data)?,
+            });
+        }
+
+        if Rowing::StrokeData.id() == uuid {
+            return Ok(RowingData::StrokeData {
+                elapsed_time: Parse::parse(&mut data)?,
+                distance: Parse::parse(&mut data)?,
+                drive_length: Parse::parse(&mut data)?,
+                drive_time: Parse::parse(&mut data)?,
+                stroke_recovery: Parse::parse(&mut data)?,
+                stroke_distance: Parse::parse(&mut data)?,
+                peak_drive_force: Parse::parse(&mut data)?,
+                avg_drive_force: Parse::parse(&mut data)?,
+                work_per_stroke: Parse::parse(&mut data)?,
+                stroke_count: Parse::parse(&mut data)?,
+            });
+        }
+
+        Err(ServiceDataError::Id)
+    }
 }
 
 impl Service for Information {
@@ -241,11 +348,116 @@ impl Service for Heartrate {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
+
+    use crate::parse::Parse;
+
     use super::*;
 
     #[test]
     fn test_characteristic() {
         let id = Rowing::MultiplexedInformation.id();
         assert_eq!(id, Uuid::from_u128(0xCE06003F_43E5_11E4_916C_0800200C9A66));
+    }
+
+    #[test]
+    fn test_data() {
+        let samples = vec![
+            [
+                186u8, 5, 0, 237, 1, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [30, 6, 0, 19, 2, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 79],
+            [
+                131, 6, 0, 58, 2, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                231, 6, 0, 95, 2, 0, 1, 1, 1, 1, 3, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                77, 7, 0, 134, 2, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                179, 7, 0, 174, 2, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                24, 8, 0, 213, 2, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                125, 8, 0, 252, 2, 0, 1, 1, 1, 1, 2, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                226, 8, 0, 35, 3, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 78,
+            ],
+            [70, 9, 0, 73, 3, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 79],
+            [
+                169, 9, 0, 108, 3, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                13, 10, 0, 141, 3, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                115, 10, 0, 172, 3, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                215, 10, 0, 199, 3, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                60, 11, 0, 225, 3, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                102, 11, 0, 236, 3, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 128, 79,
+            ],
+            [
+                4, 12, 0, 252, 3, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 80,
+            ],
+            [
+                106, 12, 0, 18, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 80,
+            ],
+            [
+                205, 12, 0, 38, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 80,
+            ],
+            [
+                50, 13, 0, 57, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 80,
+            ],
+            [
+                153, 13, 0, 76, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 80,
+            ],
+            [
+                254, 13, 0, 93, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 80,
+            ],
+            [
+                95, 14, 0, 104, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 87,
+            ],
+            [
+                194, 14, 0, 119, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 87,
+            ],
+            [
+                42, 15, 0, 135, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 87,
+            ],
+            [
+                142, 15, 0, 150, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 87,
+            ],
+            [
+                241, 15, 0, 164, 4, 0, 1, 1, 1, 1, 4, 0, 0, 0, 0, 0, 0, 128, 87,
+            ],
+        ];
+
+        for sample in samples {
+            let mut data: Cursor<Vec<u8>> = Cursor::new(sample.to_vec());
+            // let status = RowingData::GeneralStatus {
+            //     elapsed_time: ,
+            //     distance: Default::default(),
+            //     workout_type: Default::default(),
+            //     interval_type: Default::default(),
+            //     workout_state: Default::default(),
+            //     rowing_state: Default::default(),
+            //     stroke_state: Default::default(),
+            //     total_work_distance: Default::default(),
+            //     workout_duration: Default::default(),
+            //     workout_duration_type: Default::default(),
+            //     drag_factor: Default::default(),
+            // };
+            // println!("data: {:#?}", Rowing::GeneralStatus.parse(&mut data));
+        }
     }
 }

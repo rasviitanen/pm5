@@ -8,3 +8,8 @@ btleplug = { version = "0.11", features = ["serde"] }
 futures = "0.3.31"
 tokio =  { version = "1.41.1", features = ["full"] }
 uuid = "1.11.0"
+opendal = { version = "0.53.1", features = ["services-fs"]}
+anyhow = "1.0.98"
+byteorder = "1.5.0"
+thiserror = "2.0.17"
+num_enum = "0.7.5"

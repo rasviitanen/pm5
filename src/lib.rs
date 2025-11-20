@@ -1,20 +1,31 @@
+pub mod parse;
 pub mod services;
 pub mod types;
 
-use btleplug::api::{Central, CharPropFlags, Manager as _, Peripheral, ScanFilter};
+use btleplug::api::{Central, Manager as _, Peripheral, ScanFilter};
 use btleplug::platform::Manager;
 use futures::stream::StreamExt;
 use services::Service;
-use std::error::Error;
 use std::time::Duration;
 use tokio::time;
 
+use crate::services::{Pm5, Rowing, ServiceData};
+
 const PERIPHERAL_NAME_MATCH_PREFIX_FILTER: &str = "PM5";
 
-pub struct App;
+pub struct App {
+    storage: opendal::Operator,
+}
 
 impl App {
-    pub async fn run(self) -> Result<(), Box<dyn Error>> {
+    pub fn new() -> anyhow::Result<Self> {
+        let builder = opendal::services::Fs::default().root("./out");
+        let storage: opendal::Operator = opendal::Operator::new(builder)?.finish();
+        let app = App { storage };
+        Ok(app)
+    }
+
+    pub async fn run(self) -> anyhow::Result<()> {
         let manager = Manager::new().await?;
         let adapter_list = manager.adapters().await?;
         if adapter_list.is_empty() {
@@ -24,7 +35,12 @@ impl App {
         for adapter in adapter_list.iter() {
             println!("Starting scan...");
             adapter
-                .start_scan(ScanFilter::default())
+                .start_scan(ScanFilter {
+                    services: vec![
+                        //crate::services::Information::UUID,
+                        //crate::services::Rowing::UUID,
+                    ],
+                })
                 .await
                 .expect("Can't scan BLE adapter for connected devices...");
             time::sleep(Duration::from_secs(2)).await;
@@ -63,30 +79,42 @@ impl App {
                         if is_connected {
                             println!("Discover peripheral {:?} services...", local_name);
                             peripheral.discover_services().await?;
-                            for characteristic in peripheral.characteristics() {
-                                println!("Checking characteristic {:?}", characteristic);
-                                // Subscribe to notifications from the characteristic with the selected
-                                // UUID.
-                                if (characteristic.uuid == services::Rowing::GeneralStatus.id())
-                                    && characteristic.properties.contains(CharPropFlags::NOTIFY)
-                                {
-                                    println!(
-                                        "Subscribing to characteristic {:?}",
-                                        characteristic.uuid
-                                    );
-                                    peripheral.subscribe(&characteristic).await?;
-                                    // Print the first 4 notifications received.
-                                    let mut notification_stream =
-                                        peripheral.notifications().await?.take(4);
-                                    // Process while the BLE connection is not broken or stopped.
-                                    while let Some(data) = notification_stream.next().await {
-                                        println!(
-                                            "Received data from {:?} [{:?}]: {:?}",
-                                            local_name, data.uuid, data.value
-                                        );
+                            for service in peripheral.services() {
+                                if Rowing::UUID == service.uuid {
+                                    print!("Found rowing service");
+                                    for characteristic in service.characteristics {
+                                        println!("Checking characteristic {:?}", characteristic);
+                                        let supported = Pm5::rowing()
+                                            .into_iter()
+                                            .find(|c| c.id() == characteristic.uuid);
+                                        if let Some(supported) = supported
+                                        // .contains(&characteristic.uuid)
+                                        // && characteristic
+                                        //     .properties
+                                        //     .contains(CharPropFlags::NOTIFY)
+                                        {
+                                            println!(
+                                                "Subscribing to characteristic {:?} ({})",
+                                                supported, characteristic.uuid
+                                            );
+                                            peripheral.subscribe(&characteristic).await?;
+                                        } else {
+                                            println!("Skipping {:?}", characteristic.uuid);
+                                        }
                                     }
                                 }
                             }
+
+                            let mut notification_stream = peripheral.notifications().await?;
+                            //let mut writer = self.storage.writer("data").await?;
+                            while let Some(data) = notification_stream.next().await {
+                                println!("Received data from {:?} [{:?}]", local_name, data.uuid);
+                                let parsed = Pm5::parse(data.uuid, data.value);
+                                println!("frame: {:?}", parsed);
+                                // writer.write(data.uuid.as_bytes().to_vec()).await?;
+                                // writer.write(data.value).await?;
+                            }
+                            // writer.close().await?;
                             println!("Disconnecting from peripheral {:?}...", local_name);
                             peripheral.disconnect().await?;
                         }
