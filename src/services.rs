@@ -258,6 +258,20 @@ impl ServiceData for Rowing {
             });
         }
 
+        if Rowing::AdditionalStatusOne.id() == uuid {
+            return Ok(RowingData::AdditionalStatusOne {
+                elapsed_time: Parse::parse(&mut data)?,
+                speed: Parse::parse(&mut data)?,
+                stroke_rate: Parse::parse(&mut data)?,
+                heart_rate: Parse::parse(&mut data)?,
+                current_pace: Parse::parse(&mut data)?,
+                average_pace: Parse::parse(&mut data)?,
+                rest_distance: Parse::parse(&mut data)?,
+                rest_time: Parse::parse(&mut data)?,
+                machine_type: Parse::parse(&mut data)?,
+            });
+        }
+
         if Rowing::StrokeData.id() == uuid {
             return Ok(RowingData::StrokeData {
                 elapsed_time: Parse::parse(&mut data)?,
@@ -270,6 +284,17 @@ impl ServiceData for Rowing {
                 avg_drive_force: Parse::parse(&mut data)?,
                 work_per_stroke: Parse::parse(&mut data)?,
                 stroke_count: Parse::parse(&mut data)?,
+            });
+        }
+
+        if Rowing::AdditionalStrokeData.id() == uuid {
+            return Ok(RowingData::AdditionalStrokeData {
+                elapsed_time: Parse::parse(&mut data)?,
+                stroke_power: Parse::parse(&mut data)?,
+                stroke_calories: Parse::parse(&mut data)?,
+                stroke_count: Parse::parse(&mut data)?,
+                projected_work_time: Parse::parse(&mut data)?,
+                projected_work_distance: Parse::parse(&mut data)?,
             });
         }
 
