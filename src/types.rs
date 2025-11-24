@@ -1,4 +1,5 @@
 use num_enum::TryFromPrimitive;
+use serde::{Deserialize, Serialize};
 
 mod privat {
     use std::io::Read;
@@ -125,8 +126,18 @@ mod privat {
     ];
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct U24(u32);
+
+impl U24 {
+    pub fn new(v: u32) -> Self {
+        Self(v)
+    }
+
+    pub fn as_u32(&self) -> u32 {
+        self.0
+    }
+}
 
 impl std::ops::Deref for U24 {
     type Target = u32;
@@ -142,54 +153,54 @@ impl std::ops::DerefMut for U24 {
     }
 }
 // u24, little-endian
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Time(pub U24);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct LogEntryTime(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct LogEntryDate(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct StrokeRecoveryTime(pub u16);
 // u24, little-endian
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Distance(pub U24);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct RestTime(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct RestDistance(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Pace(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Speed(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct StrokeRate(pub u8);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct HeartRate(pub u8);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct DragFactor(pub u8);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct IntervalCount(pub u8);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Power(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct DriveLength(pub u8);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct DriveTime(pub u8);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Calories(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct StrokeDistance(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Force(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Work(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Size(pub u8);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct StrokeCount(pub u16);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct GameId(pub u8);
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct GameScore(pub u16);
 
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive)]

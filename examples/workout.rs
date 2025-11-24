@@ -1,46 +1,88 @@
-use pm5::workout::*;
+use pm5::{
+    services::{AdditionalStatusOne, AdditionalStrokeData, GeneralStatus, StrokeData},
+    types::{
+        Calories, Distance, DragFactor, DriveLength, DriveTime, Force, HeartRate, Pace, Power,
+        RestDistance, Speed, StrokeCount, StrokeDistance, StrokeRate, StrokeRecoveryTime, Time,
+        Work, U24,
+    },
+    workout::*,
+};
 use polars::prelude::*;
 use uuid::Uuid;
 
 async fn record_workout_example() -> anyhow::Result<Uuid> {
-    let mut recorder = WorkoutRecorder::new("user_abc123".to_string());
+    let mut recorder = WorkoutRecorder::new();
 
     for i in 0..3000 {
-        let elapsed_ms = i * 1000;
-        let distance = i * 10; // ~10m per second
+        let elapsed_ms = Time(U24::new(i * 1000));
+        let distance = Distance(U24::new(i * 10)); // ~10m per second
         let hr = Some(120 + (i % 20) as u8);
         let stroke_rate = Some(20 + (i % 5) as u8);
         let pace = Some(120000 + i * 100); // Getting slightly slower
 
-        if i % 3 == 0 {
-            recorder.set_stroke_data(
-                elapsed_ms,
-                distance,
-                140,
-                800,
-                450,
-                380,
-                85,
-                Some(240 + (i % 60) as u16),
-                Some(10 + i as u16),
-            );
-        }
+        // if i % 3 == 0 {
+        recorder.add_stroke_data(StrokeData {
+            elapsed_time: elapsed_ms,
+            distance: distance,
+            drive_length: DriveLength(5),
+            drive_time: DriveTime(2),
+            stroke_recovery: StrokeRecoveryTime(5),
+            stroke_distance: StrokeDistance(5),
+            peak_drive_force: Force(260),
+            avg_drive_force: Force(120),
+            work_per_stroke: Work(2),
+            stroke_count: StrokeCount(i as u16 / 3),
+        });
 
-        recorder.add_general_sample(elapsed_ms, distance, hr, stroke_rate, pace);
+        recorder.add_additional_stroke_data(AdditionalStrokeData {
+            elapsed_time: elapsed_ms,
+            stroke_power: Power(220),
+            stroke_calories: Calories(20),
+            stroke_count: StrokeCount(80),
+            projected_work_time: Time(U24::new(10)),
+            projected_work_distance: Distance(U24::new(30)),
+        });
+        // }
+
+        recorder.add_general_status(GeneralStatus {
+            elapsed_time: elapsed_ms,
+            distance: distance,
+            workout_type: pm5::types::WorkoutType::JustrowSplits,
+            interval_type: pm5::types::IntervalType::Time,
+            workout_state: pm5::types::WorkoutState::WorkoutRow,
+            rowing_state: pm5::types::RowingState::Active,
+            stroke_state: pm5::types::StrokeState::DrivingState,
+            total_work_distance: distance,
+            workout_duration: elapsed_ms,
+            workout_duration_type: pm5::types::WorkoutDurationType::Time,
+            drag_factor: DragFactor(10),
+        });
+
+        recorder.add_additional_status_one(AdditionalStatusOne {
+            elapsed_time: elapsed_ms,
+            speed: Speed(10),
+            stroke_rate: StrokeRate(50),
+            heart_rate: HeartRate(160),
+            current_pace: Pace(140),
+            average_pace: Pace(120),
+            rest_distance: RestDistance(100),
+            rest_time: Time(U24::new(40)),
+            machine_type: pm5::types::ErgMachineType::MultiergSki,
+        });
     }
 
     // Generate summary using LazyFrame
     let summary = recorder.generate_summary(None)?;
     let id = summary.workout_id;
     println!(
-        "Workout completed: {} meters in {}ms",
+        "Workout completed: {:?} meters in {:?}ms",
         summary.total_distance_m, summary.duration_ms
     );
     println!("Avg Power: {:?}W", summary.avg_power_watts);
 
     let storage = WorkoutStorage::new_disk("rowing-workouts").await?;
 
-    storage.save_workout(&recorder, &summary).await?;
+    storage.save_workout("races", &recorder).await?;
     println!("Workout saved to cloud!");
 
     Ok(id)
@@ -148,115 +190,115 @@ async fn analyze_user_power_trends(id: Uuid) -> anyhow::Result<()> {
     })
 }
 
-async fn calculate_race_results() -> anyhow::Result<()> {
-    let race_summaries = vec![
-        WorkoutSummary {
-            workout_id: Uuid::now_v7(),
-            user_id: "user1".into(),
-            start_time: 0,
-            end_time: 300000,
-            duration_ms: 300000, // 5 minutes
-            total_distance_m: 1500,
-            total_calories: 150,
-            avg_power_watts: Some(240),
-            avg_heart_rate_bpm: Some(165),
-            max_heart_rate_bpm: Some(180),
-            avg_stroke_rate: Some(22),
-            avg_pace_ms_per_500m: Some(100000),
-            race_id: Some("race123".into()),
-            race_position: None,
-        },
-        WorkoutSummary {
-            workout_id: Uuid::now_v7(),
-            user_id: "user2".into(),
-            start_time: 0,
-            end_time: 310000,
-            duration_ms: 310000,
-            total_distance_m: 1500,
-            total_calories: 145,
-            avg_power_watts: Some(230),
-            avg_heart_rate_bpm: Some(170),
-            max_heart_rate_bpm: Some(185),
-            avg_stroke_rate: Some(24),
-            avg_pace_ms_per_500m: Some(103000),
-            race_id: Some("race123".into()),
-            race_position: None,
-        },
-        WorkoutSummary {
-            workout_id: Uuid::now_v7(),
-            user_id: "user3".into(),
-            start_time: 0,
-            end_time: 295000,
-            duration_ms: 295000,
-            total_distance_m: 1500,
-            total_calories: 155,
-            avg_power_watts: Some(250),
-            avg_heart_rate_bpm: Some(172),
-            max_heart_rate_bpm: Some(188),
-            avg_stroke_rate: Some(20),
-            avg_pace_ms_per_500m: Some(98000),
-            race_id: Some("race123".into()),
-            race_position: None,
-        },
-    ];
+// asynccalcu fn calculate_race_results() -> anyhow::Result<()> {
+//     let race_summaries = vec![
+//         WorkoutSummary {
+//             workout_id: Uuid::now_v7(),
+//             user_id: "user1".into(),
+//             start_time: 0,
+//             end_time: 300000,
+//             duration_ms: 300000, // 5 minutes
+//             total_distance_m: 1500,
+//             avg_power_watts: Some(240),
+//             avg_heart_rate_bpm: Some(165),
+//             max_heart_rate_bpm: Some(180),
+//             avg_stroke_rate: Some(22),
+//             avg_pace_ms_per_500m: Some(100000),
+//             race_id: Some("race123".into()),
+//             race_position: None,
+//         },
+//         WorkoutSummary {
+//             workout_id: Uuid::now_v7(),
+//             user_id: "user2".into(),
+//             start_time: 0,
+//             end_time: 310000,
+//             duration_ms: 310000,
+//             total_distance_m: 1500,
+//             avg_power_watts: Some(230),
+//             avg_heart_rate_bpm: Some(170),
+//             max_heart_rate_bpm: Some(185),
+//             avg_stroke_rate: Some(24),
+//             avg_pace_ms_per_500m: Some(103000),
+//             race_id: Some("race123".into()),
+//             race_position: None,
+//         },
+//         WorkoutSummary {
+//             workout_id: Uuid::now_v7(),
+//             user_id: "user3".into(),
+//             start_time: 0,
+//             end_time: 295000,
+//             duration_ms: 295000,
+//             total_distance_m: 1500,
+//             avg_power_watts: Some(250),
+//             avg_heart_rate_bpm: Some(172),
+//             max_heart_rate_bpm: Some(188),
+//             avg_stroke_rate: Some(20),
+//             avg_pace_ms_per_500m: Some(Pace(98000)),
+//             race_id: Some("race123".into()),
+//             race_position: None,
+//         },
+//     ];
 
-    tokio::task::block_in_place(|| {
-        let user_ids: Vec<String> = race_summaries.iter().map(|s| s.user_id.clone()).collect();
-        let durations: Vec<u32> = race_summaries.iter().map(|s| s.duration_ms).collect();
+//     tokio::task::block_in_place(|| {
+//         let user_ids: Vec<String> = race_summaries.iter().map(|s| s.user_id.clone()).collect();
+//         let durations: Vec<u32> = race_summaries
+//             .iter()
+//             .map(|s| s.duration_ms.0.as_u32())
+//             .collect();
 
-        let df = DataFrame::new(vec![
-            Series::new("user_id".into(), user_ids).into(),
-            Series::new("duration_ms".into(), durations).into(),
-            Series::from_iter(
-                race_summaries
-                    .iter()
-                    .map(|s| s.avg_power_watts.map(|v| v as u32)),
-            )
-            .with_name("avg_power_watts".into())
-            .into(),
-        ])?;
+//         let df = DataFrame::new(vec![
+//             Series::new("user_id".into(), user_ids).into(),
+//             Series::new("duration_ms".into(), durations).into(),
+//             Series::from_iter(
+//                 race_summaries
+//                     .iter()
+//                     .map(|s| s.avg_power_watts.map(|v| v.0 as u32)),
+//             )
+//             .with_name("avg_power_watts".into())
+//             .into(),
+//         ])?;
 
-        let leaderboard = df
-            .clone()
-            .lazy()
-            .sort(["duration_ms"], Default::default())
-            .with_row_index("position", Some(1))
-            .with_column(
-                // Calculate time behind leader
-                (col("duration_ms") - col("duration_ms").first()).alias("time_behind_ms"),
-            )
-            .with_column(
-                // Format position as "1st", "2nd", "3rd", etc.
-                when(col("position").eq(lit(1)))
-                    .then(lit("🥇 1st"))
-                    .when(col("position").eq(lit(2)))
-                    .then(lit("🥈 2nd"))
-                    .when(col("position").eq(lit(3)))
-                    .then(lit("🥉 3rd"))
-                    .otherwise(concat_str([col("position"), lit("th")], "", false))
-                    .alias("display_position"),
-            )
-            .collect()?;
+//         let leaderboard = df
+//             .clone()
+//             .lazy()
+//             .sort(["duration_ms"], Default::default())
+//             .with_row_index("position", Some(1))
+//             .with_column(
+//                 // Calculate time behind leader
+//                 (col("duration_ms") - col("duration_ms").first()).alias("time_behind_ms"),
+//             )
+//             .with_column(
+//                 // Format position as "1st", "2nd", "3rd", etc.
+//                 when(col("position").eq(lit(1)))
+//                     .then(lit("🥇 1st"))
+//                     .when(col("position").eq(lit(2)))
+//                     .then(lit("🥈 2nd"))
+//                     .when(col("position").eq(lit(3)))
+//                     .then(lit("🥉 3rd"))
+//                     .otherwise(concat_str([col("position"), lit("th")], "", false))
+//                     .alias("display_position"),
+//             )
+//             .collect()?;
 
-        println!("Race Leaderboard (1500m):");
-        println!("{}", leaderboard);
+//         println!("Race Leaderboard (1500m):");
+//         println!("{}", leaderboard);
 
-        let power_rankings = df
-            .lazy()
-            .filter(col("avg_power_watts").is_not_null())
-            .sort(
-                ["avg_power_watts"],
-                SortMultipleOptions::default().with_order_descending(true),
-            )
-            .with_row_index("power_rank", Some(1))
-            .collect()?;
+//         let power_rankings = df
+//             .lazy()
+//             .filter(col("avg_power_watts").is_not_null())
+//             .sort(
+//                 ["avg_power_watts"],
+//                 SortMultipleOptions::default().with_order_descending(true),
+//             )
+//             .with_row_index("power_rank", Some(1))
+//             .collect()?;
 
-        println!("\nPower Rankings:");
-        println!("{}", power_rankings);
+//         println!("\nPower Rankings:");
+//         println!("{}", power_rankings);
 
-        Ok::<_, anyhow::Error>(())
-    })
-}
+//         Ok::<_, anyhow::Error>(())
+//     })
+// }
 
 async fn analyze_stroke_quality(id: Uuid) -> anyhow::Result<()> {
     let storage = WorkoutStorage::new_disk("rowing-workouts").await?;
@@ -392,7 +434,7 @@ async fn main() -> anyhow::Result<()> {
     analyze_user_power_trends(id).await?;
     analyze_stroke_quality(id).await?;
     time_series_analysis(id).await?;
-    calculate_race_results().await?;
+    // calculate_race_results().await?;
 
     Ok(())
 }

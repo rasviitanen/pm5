@@ -13,13 +13,19 @@ pub enum Pm5 {
 
 impl Pm5 {
     pub fn rowing() -> &'static [Rowing] {
-        &[Rowing::GeneralStatus, Rowing::StrokeData]
+        &[
+            Rowing::GeneralStatus,
+            Rowing::AdditionalStatusOne,
+            Rowing::StrokeData,
+            Rowing::AdditionalStrokeData,
+        ]
     }
 }
 
 #[derive(Debug)]
 pub enum Pm5Data {
     Rowing(RowingData),
+    Control(ControlData),
 }
 
 impl ServiceData for Pm5 {
@@ -28,6 +34,8 @@ impl ServiceData for Pm5 {
     fn parse(uuid: Uuid, data: Vec<u8>) -> Result<Self::Data, ServiceDataError> {
         if Rowing::characteristic_is_part_of_service(uuid) {
             Rowing::parse(uuid, data).map(Pm5Data::Rowing)
+        } else if Control::characteristic_is_part_of_service(uuid) {
+            Control::parse(uuid, data).map(Pm5Data::Control)
         } else {
             Err(ServiceDataError::UnkownService)
         }
@@ -68,134 +76,178 @@ pub enum Rowing {
 }
 
 #[derive(Debug)]
+pub struct GeneralStatus {
+    pub elapsed_time: Time,
+    pub distance: Distance,
+    pub workout_type: WorkoutType,
+    pub interval_type: IntervalType,
+    pub workout_state: WorkoutState,
+    pub rowing_state: RowingState,
+    pub stroke_state: StrokeState,
+    pub total_work_distance: Distance,
+    pub workout_duration: Time,
+    pub workout_duration_type: WorkoutDurationType,
+    pub drag_factor: DragFactor,
+}
+
+#[derive(Debug)]
+pub struct AdditionalStatusOne {
+    pub elapsed_time: Time,
+    pub speed: Speed,
+    pub stroke_rate: StrokeRate,
+    pub heart_rate: HeartRate,
+    pub current_pace: Pace,
+    pub average_pace: Pace,
+    pub rest_distance: RestDistance,
+    pub rest_time: Time, // Strange that this is 3 bytes, but other rest times are 2?
+    pub machine_type: ErgMachineType,
+}
+
+#[derive(Debug)]
+pub struct AdditionalStatusTwo {
+    pub elapsed_time: Time,
+    pub interval_count: IntervalCount,
+    pub average_power: Power,
+    pub total_calories: Calories,
+    pub split_interval_avg_pace: Pace,
+    pub split_interval_avg_power: Power,
+    pub split_interval_avg_calories: Calories,
+    pub last_split_time: Time,
+    pub last_split_distance: Distance,
+}
+
+#[derive(Debug)]
+pub struct GeneralStatusRate {
+    pub interval: SampleRate,
+}
+
+#[derive(Debug)]
+pub struct StrokeData {
+    pub elapsed_time: Time,
+    pub distance: Distance,
+    pub drive_length: DriveLength,
+    pub drive_time: DriveTime,
+    pub stroke_recovery: StrokeRecoveryTime,
+    pub stroke_distance: StrokeDistance,
+    pub peak_drive_force: Force,
+    pub avg_drive_force: Force,
+    pub work_per_stroke: Work,
+    pub stroke_count: StrokeCount,
+}
+
+#[derive(Debug)]
+pub struct AdditionalStrokeData {
+    pub elapsed_time: Time,
+    pub stroke_power: Power,
+    pub stroke_calories: Calories,
+    pub stroke_count: StrokeCount,
+    pub projected_work_time: Time,
+    pub projected_work_distance: Distance,
+}
+
+#[derive(Debug)]
+pub struct SplitIntervalData {
+    pub elapsed_time: Time,
+    pub distance: Distance,
+    pub split_interval_time: Time,
+    pub split_interval_distance: Distance,
+    pub interval_rest_time: RestTime,
+    pub interval_rest_distance: RestDistance,
+    pub split_interval_type: IntervalType,
+    pub split_interval_number: IntervalCount,
+}
+
+#[derive(Debug)]
+pub struct AdditionalSplitIntervalData {
+    pub elapsed_time: Time,
+    pub split_interval_avg_stroke_rate: StrokeRate,
+    pub split_interval_work_heartrate: HeartRate,
+    pub split_interval_rest_heartrate: HeartRate,
+    pub split_interval_avg_pace: Pace,
+    pub split_interval_total_calories: Calories,
+    pub split_interval_avg_calories: Calories,
+    pub split_interval_speed: Speed,
+    pub split_interval_power: Power,
+    pub split_avg_drag_factor: DragFactor,
+    pub split_interval_number: IntervalCount,
+    pub erg_machine_type: ErgMachineType,
+}
+
+#[derive(Debug)]
+pub struct EndOfWorkoutSummaryData {
+    pub log_entry_date: LogEntryDate,
+    pub log_entry_time: LogEntryTime,
+    pub elapsed_time: Time,
+    pub distance: Distance,
+    pub avg_stroke_rate: StrokeRate,
+    pub ending_heartrate: HeartRate,
+    pub avg_heartrate: HeartRate,
+    pub min_heartrate: HeartRate,
+    pub max_heartrate: HeartRate,
+    pub drag_factor_avg: DragFactor,
+    pub recover_heartrate: HeartRate,
+    pub workout_type: WorkoutType,
+    pub avg_pace: Pace,
+}
+
+#[derive(Debug)]
+pub struct AdditionalEndOfWorkoutSummaryData {
+    pub log_entry_date: LogEntryDate,
+    pub log_entry_time: LogEntryTime,
+    pub split_interval_type: IntervalType,
+    pub split_interval_size: Size,
+    pub split_interval_count: IntervalCount,
+    pub total_calories: Calories,
+    pub watts: Work,
+    pub total_rest_distance: Distance,
+    pub interval_rest_time: RestTime,
+    pub avg_calories: Calories,
+}
+
+#[derive(Debug)]
+pub struct HeartRateBeltInformation {
+    pub manufacturer_id: u8,
+    pub device_type: u8,
+    pub belt_id: u32,
+}
+
+#[derive(Debug)]
+pub struct AdditionalEndOfWorkoutSummaryDataTwo {
+    pub log_entry_date: LogEntryDate,
+    pub log_entry_time: LogEntryTime,
+    pub avg_pace: Pace,
+    pub game_id: GameId,
+    pub game_score: GameScore,
+    pub erg_machine_type: ErgMachineType,
+}
+
+#[derive(Debug)]
+pub struct ForceCurveData {
+    pub data: crate::types::ForceCurveData,
+}
+
+#[derive(Debug)]
+pub struct AdditionalStatusThree {}
+#[derive(Debug)]
+pub struct MultiplexedInformation {}
+
+#[derive(Debug)]
 pub enum RowingData {
-    GeneralStatus {
-        elapsed_time: Time,
-        distance: Distance,
-        workout_type: WorkoutType,
-        interval_type: IntervalType,
-        workout_state: WorkoutState,
-        rowing_state: RowingState,
-        stroke_state: StrokeState,
-        total_work_distance: Distance,
-        workout_duration: Time,
-        workout_duration_type: WorkoutDurationType,
-        drag_factor: DragFactor,
-    },
-    AdditionalStatusOne {
-        elapsed_time: Time,
-        speed: Speed,
-        stroke_rate: StrokeRate,
-        heart_rate: HeartRate,
-        current_pace: Pace,
-        average_pace: Pace,
-        rest_distance: RestDistance,
-        rest_time: Time, // Strange that this is 3 bytes, but other rest times are 2?
-        machine_type: ErgMachineType,
-    },
-    AdditionalStatusTwo {
-        elapsed_time: Time,
-        interval_count: IntervalCount,
-        average_power: Power,
-        total_calories: Calories,
-        split_interval_avg_pace: Pace,
-        split_interval_avg_power: Power,
-        split_interval_avg_calories: Calories,
-        last_split_time: Time,
-        last_split_distance: Distance,
-    },
-    GeneralStatusRate {
-        interval: SampleRate,
-    },
-    StrokeData {
-        elapsed_time: Time,
-        distance: Distance,
-        drive_length: DriveLength,
-        drive_time: DriveTime,
-        stroke_recovery: StrokeRecoveryTime,
-        stroke_distance: StrokeDistance,
-        peak_drive_force: Force,
-        avg_drive_force: Force,
-        work_per_stroke: Work,
-        stroke_count: StrokeCount,
-    },
-    AdditionalStrokeData {
-        elapsed_time: Time,
-        stroke_power: Power,
-        stroke_calories: Calories,
-        stroke_count: StrokeCount,
-        projected_work_time: Time,
-        projected_work_distance: Distance,
-    },
-    SplitIntervalData {
-        elapsed_time: Time,
-        distance: Distance,
-        split_interval_time: Time,
-        split_interval_distance: Distance,
-        interval_rest_time: RestTime,
-        interval_rest_distance: RestDistance,
-        split_interval_type: IntervalType,
-        split_interval_number: IntervalCount,
-    },
-    AdditionalSplitIntervalData {
-        elapsed_time: Time,
-        split_interval_avg_stroke_rate: StrokeRate,
-        split_interval_work_heartrate: HeartRate,
-        split_interval_rest_heartrate: HeartRate,
-        split_interval_avg_pace: Pace,
-        split_interval_total_calories: Calories,
-        split_interval_avg_calories: Calories,
-        split_interval_speed: Speed,
-        split_interval_power: Power,
-        split_avg_drag_factor: DragFactor,
-        split_interval_number: IntervalCount,
-        erg_machine_type: ErgMachineType,
-    },
-    EndOfWorkoutSummaryData {
-        log_entry_date: LogEntryDate,
-        log_entry_time: LogEntryTime,
-        elapsed_time: Time,
-        distance: Distance,
-        avg_stroke_rate: StrokeRate,
-        ending_heartrate: HeartRate,
-        avg_heartrate: HeartRate,
-        min_heartrate: HeartRate,
-        max_heartrate: HeartRate,
-        drag_factor_avg: DragFactor,
-        recover_heartrate: HeartRate,
-        workout_type: WorkoutType,
-        avg_pace: Pace,
-    },
-    AdditionalEndOfWorkoutSummaryData {
-        log_entry_date: LogEntryDate,
-        log_entry_time: LogEntryTime,
-        split_interval_type: IntervalType,
-        split_interval_size: Size,
-        split_interval_count: IntervalCount,
-        total_calories: Calories,
-        watts: Work,
-        total_rest_distance: Distance,
-        interval_rest_time: RestTime,
-        avg_calories: Calories,
-    },
-    HeartRateBeltInformation {
-        manufacturer_id: u8,
-        device_type: u8,
-        belt_id: u32,
-    },
-    AdditionalEndOfWorkoutSummaryDataTwo {
-        log_entry_date: LogEntryDate,
-        log_entry_time: LogEntryTime,
-        avg_pace: Pace,
-        game_id: GameId,
-        game_score: GameScore,
-        erg_machine_type: ErgMachineType,
-    },
-    ForceCurveData {
-        data: ForceCurveData,
-    },
-    AdditionalStatusThree {},
-    MultiplexedInformation {},
+    GeneralStatus(GeneralStatus),
+    AdditionalStatusOne(AdditionalStatusOne),
+    AdditionalStatusTwo(AdditionalStatusTwo),
+    GeneralStatusRate(GeneralStatusRate),
+    StrokeData(StrokeData),
+    AdditionalStrokeData(AdditionalStrokeData),
+    SplitIntervalData(SplitIntervalData),
+    AdditionalSplitIntervalData(AdditionalSplitIntervalData),
+    EndOfWorkoutSummaryData(EndOfWorkoutSummaryData),
+    AdditionalEndOfWorkoutSummaryData(AdditionalEndOfWorkoutSummaryData),
+    HeartRateBeltInformation(HeartRateBeltInformation),
+    AdditionalEndOfWorkoutSummaryDataTwo(AdditionalEndOfWorkoutSummaryDataTwo),
+    ForceCurveData(ForceCurveData),
+    AdditionalStatusThree(AdditionalStatusThree),
+    MultiplexedInformation(MultiplexedInformation),
 }
 
 pub trait Service {
@@ -243,7 +295,7 @@ impl ServiceData for Rowing {
     fn parse(uuid: Uuid, data: Vec<u8>) -> Result<Self::Data, ServiceDataError> {
         let mut data = Cursor::new(data);
         if Rowing::GeneralStatus.id() == uuid {
-            return Ok(RowingData::GeneralStatus {
+            return Ok(RowingData::GeneralStatus(GeneralStatus {
                 elapsed_time: Parse::parse(&mut data)?,
                 distance: Parse::parse(&mut data)?,
                 workout_type: Parse::parse(&mut data)?,
@@ -255,11 +307,11 @@ impl ServiceData for Rowing {
                 workout_duration: Parse::parse(&mut data)?,
                 workout_duration_type: Parse::parse(&mut data)?,
                 drag_factor: Parse::parse(&mut data)?,
-            });
+            }));
         }
 
         if Rowing::AdditionalStatusOne.id() == uuid {
-            return Ok(RowingData::AdditionalStatusOne {
+            return Ok(RowingData::AdditionalStatusOne(AdditionalStatusOne {
                 elapsed_time: Parse::parse(&mut data)?,
                 speed: Parse::parse(&mut data)?,
                 stroke_rate: Parse::parse(&mut data)?,
@@ -269,11 +321,11 @@ impl ServiceData for Rowing {
                 rest_distance: Parse::parse(&mut data)?,
                 rest_time: Parse::parse(&mut data)?,
                 machine_type: Parse::parse(&mut data)?,
-            });
+            }));
         }
 
         if Rowing::StrokeData.id() == uuid {
-            return Ok(RowingData::StrokeData {
+            return Ok(RowingData::StrokeData(StrokeData {
                 elapsed_time: Parse::parse(&mut data)?,
                 distance: Parse::parse(&mut data)?,
                 drive_length: Parse::parse(&mut data)?,
@@ -284,18 +336,18 @@ impl ServiceData for Rowing {
                 avg_drive_force: Parse::parse(&mut data)?,
                 work_per_stroke: Parse::parse(&mut data)?,
                 stroke_count: Parse::parse(&mut data)?,
-            });
+            }));
         }
 
         if Rowing::AdditionalStrokeData.id() == uuid {
-            return Ok(RowingData::AdditionalStrokeData {
+            return Ok(RowingData::AdditionalStrokeData(AdditionalStrokeData {
                 elapsed_time: Parse::parse(&mut data)?,
                 stroke_power: Parse::parse(&mut data)?,
                 stroke_calories: Parse::parse(&mut data)?,
                 stroke_count: Parse::parse(&mut data)?,
                 projected_work_time: Parse::parse(&mut data)?,
                 projected_work_distance: Parse::parse(&mut data)?,
-            });
+            }));
         }
 
         Err(ServiceDataError::Id)
@@ -327,6 +379,19 @@ impl Service for Control {
             Control::Transmit => 0x0002,
         };
         Uuid::from_u128(Self::UUID.as_u128() | b << 96)
+    }
+}
+
+#[derive(Debug)]
+pub enum ControlData {
+    Receive {},
+}
+
+impl ServiceData for Control {
+    type Data = ControlData;
+
+    fn parse(uuid: Uuid, data: Vec<u8>) -> Result<Self::Data, ServiceDataError> {
+        Ok(ControlData::Receive {})
     }
 }
 
