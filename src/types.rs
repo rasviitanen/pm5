@@ -164,6 +164,19 @@ pub struct StrokeRecoveryTime(pub u16);
 // u24, little-endian
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Distance(pub U24);
+
+impl Distance {
+    pub fn to_le_bytes(self) -> [u8; 4] {
+        self.0.as_u32().to_le_bytes()
+    }
+}
+
+impl From<u32> for Distance {
+    fn from(value: u32) -> Self {
+        Self(U24(value))
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct RestTime(pub u16);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
@@ -203,7 +216,7 @@ pub struct GameId(pub u8);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct GameScore(pub u16);
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum SampleRate {
     Slow,    // 0x0001
@@ -214,7 +227,7 @@ pub enum SampleRate {
 #[derive(Debug)]
 pub struct ForceCurveData(pub Vec<Force>);
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum OperationalState {
     /// Reset state (0).
@@ -249,7 +262,7 @@ pub enum OperationalState {
     Dfcalibration = 100,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum ErgModelType {
     /// Model D/E type (0).
@@ -260,7 +273,7 @@ pub enum ErgModelType {
     TypeA,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum ErgMachineType {
     /// Model D, static type (0).
@@ -313,25 +326,25 @@ pub enum ErgMachineType {
     Num,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum WorkoutType {
     /// JustRow, no splits (0).
-    JustrowNosplits,
+    JustrowNoSplits,
     /// JustRow, splits (1).
     JustrowSplits,
     /// Fixed distance, no splits (2).
-    FixeddistNosplits,
+    FixedDistanceNoSplits,
     /// Fixed distance, splits (3).
-    FixeddistSplits,
+    FixedDistanceSplits,
     /// Fixed time, no splits (4).
-    FixedtimeNosplits,
+    FixedtimeNoSplits,
     /// Fixed time, splits (5).
     FixedtimeSplits,
     /// Fixed time interval (6).
     FixedtimeInterval,
     /// Fixed distance interval (7).
-    FixeddistInterval,
+    FixedDistanceInterval,
     /// Variable interval (8).
     VariableInterval,
     /// Variable interval, undefined rest (9).
@@ -346,7 +359,7 @@ pub enum WorkoutType {
     Num,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum IntervalType {
     /// Time interval type (0).
@@ -373,7 +386,7 @@ pub enum IntervalType {
     None = 255,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum WorkoutState {
     /// Wait to begin state (0).
@@ -406,7 +419,7 @@ pub enum WorkoutState {
     Rearm,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum RowingState {
     /// Inactive (0).
@@ -415,7 +428,7 @@ pub enum RowingState {
     Active,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum StrokeState {
     /// FW to reach min speed state (0).
@@ -430,7 +443,7 @@ pub enum StrokeState {
     RecoveryState,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum WorkoutDurationType {
     Time = 0,
@@ -439,7 +452,7 @@ pub enum WorkoutDurationType {
     WattMin = 0xC0,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum DisplayUnitType {
     /// Time/meters display units (0).
@@ -454,7 +467,7 @@ pub enum DisplayUnitType {
     Calories,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum DisplayFormatType {
     /// Standard display type (0).
@@ -471,7 +484,7 @@ pub enum DisplayFormatType {
     Target,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum WorkoutNumber {
     /// Programmed (0).
@@ -510,7 +523,7 @@ pub enum WorkoutNumber {
     Num,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum WorkoutProgrammingMode {
     /// Disable (0).
@@ -519,7 +532,7 @@ pub enum WorkoutProgrammingMode {
     Enable,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum StrokeRateState {
     /// Idle state (0).
@@ -532,7 +545,7 @@ pub enum StrokeRateState {
     Decreasing,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum StartType {
     /// Random type (0).
@@ -547,7 +560,7 @@ pub enum StartType {
     WaitForFlyWheel,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum RaceOperationType {
     /// Disable type (0).
@@ -582,7 +595,7 @@ pub enum RaceOperationType {
     TachSimDisable,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum RaceState {
     /// Race idle state (0).
@@ -605,15 +618,15 @@ pub enum RaceState {
     Inactive,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum RaceType {
     /// Fixed distance, individual type (0).
-    FixeddistSingleerg,
+    FixedDistanceSingleerg,
     /// Fixed time, individual type (1).
     FixedtimeSingleerg,
     /// Fixed distance, team type (2).
-    FixeddistTeamerg,
+    FixedDistanceTeamerg,
     /// Fixed time, team type (3).
     FixedtimeTeamerg,
     /// Workout race start type (4).
@@ -623,53 +636,53 @@ pub enum RaceType {
     /// Fixed calorie, team type (6).
     FixedcalTeamerg,
     /// Fixed distance, relay individual type (7).
-    FixeddistRelaySingleerg,
+    FixedDistanceRelaySingleerg,
     /// Fixed time, relay individual type (8).
     FixedtimeRelaySingleerg,
     /// Fixed calorie, relay individual type (9).
     FixedcalRelaySingleerg,
     /// Fixed distance, relay team type (10).
-    FixeddistRelayTeamerg,
+    FixedDistanceRelayTeamerg,
     /// Fixed time, relay team type (11).
     FixedtimeRelayTeamerg,
     /// Fixed calorie, relay team type (12).
     FixedcalRelayTeamerg,
     /// Fixed distance, multiactivity individual type, sequential use (13).
-    FixeddistMultiactivitySequentialSingleerg,
+    FixedDistanceMultiactivitySequentialSingleerg,
     /// Fixed time, multiactivity individual type, sequential use (14).
     FixedtimeMultiactivitySequentialSingleerg,
     /// Fixed calorie, multiactivity individual type, sequential use (15).
     FixedcalMultiactivitySequentialSingleerg,
     /// Fixed distance, multiactivity team type, sequential use (16).
-    FixeddistMultiactivitySequentialTeamerg,
+    FixedDistanceMultiactivitySequentialTeamerg,
     /// Fixed time, multiactivity team type, sequential use (17).
     FixedtimeMultiactivitySequentialTeamerg,
     /// Fixed calorie, multiactivity team type, sequential use (18).
     FixedcalMultiactivitySequentialTeamerg,
     /// Fixed distance, Ergathlon type (19).
-    FixeddistErgathlon,
+    FixedDistanceErgathlon,
     /// Fixed time, Ergathlon type (20).
     FixedtimeErgathlon,
     /// Fixed calorie, Ergathlon type (21).
     FixedcalErgathlon,
     /// Fixed distance, multiactivity individual type, simultaneous use (22).
-    FixeddistMultiactivitySimultaneousSingleerg,
+    FixedDistanceMultiactivitySimultaneousSingleerg,
     /// Fixed time, multiactivity individual type, simultaneous use (23).
     FixedtimeMultiactivitySimultaneousSingleerg,
     /// Fixed calorie, multiactivity individual type, simultaneous use (24).
     FixedcalMultiactivitySimultaneousSingleerg,
     /// Fixed distance, multiactivity team type, simultaneous use (25).
-    FixeddistMultiactivitySimultaneousTeamerg,
+    FixedDistanceMultiactivitySimultaneousTeamerg,
     /// Fixed time, multiactivity team type, simultaneous use (26).
     FixedtimeMultiactivitySimultaneousTeamerg,
     /// Fixed calorie, multiactivity team type, simultaneous use (27).
     FixedcalMultiactivitySimultaneousTeamerg,
     /// Fixed distance, Biathlon type (28).
-    FixeddistBiathlon,
+    FixedDistanceBiathlon,
     /// Fixed calorie, Biathlon type (29).
     FixedcalBiathlon,
     /// Fixed distance, no change prompt, relay individual type (30).
-    FixeddistRelayNochangeSingleerg,
+    FixedDistanceRelayNochangeSingleerg,
     /// Fixed time, no change prompt, relay individual type (31).
     FixedtimeRelayNochangeSingleerg,
     /// Fixed calorie, no change prompt, relay individual type (32).
@@ -679,12 +692,12 @@ pub enum RaceType {
     /// Fixed time, calorie score, team type (34).
     FixedtimeCalscoreTeamerg,
     /// Fixed time, calorie score, individual type (35).
-    FixeddistTimecapSingleerg,
+    FixedDistanceTimecapSingleerg,
     /// Fixed time, calorie score, team type (36).
     FixedcalTimecapSingleerg,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum RaceStartState {
     /// Init state (0).
@@ -705,7 +718,7 @@ pub enum RaceStartState {
     FalseStart,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum ScreenType {
     // FIXME:(rasviitanen) weird None value here should probably eq 0. Should recheck the spec.
@@ -722,7 +735,7 @@ pub enum ScreenType {
     Mfg,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum ScreenValueWorkoutType {
     /// None value (0).
@@ -821,7 +834,7 @@ pub enum ScreenValueWorkoutType {
     ScreenRedraw = 255,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum ScreenValueRaceType {
     /// None value (0).
@@ -898,7 +911,7 @@ pub enum ScreenValueRaceType {
     ScreenRedraw = 255,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum ScreenValueCsafe {
     /// None value (0).
@@ -919,7 +932,7 @@ pub enum ScreenValueCsafe {
     ScreenRedraw = 255,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum ScreenStatus {
     Inactive,
@@ -927,7 +940,7 @@ pub enum ScreenStatus {
     Inprogress,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum StatusType {
     /// None (0).
@@ -968,7 +981,7 @@ pub enum StatusType {
     ServiceCalibrationWarning,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum DisplayUpdateRate {
     /// 5Hz (0).

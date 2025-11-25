@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use uuid::Uuid;
 
-use crate::{parse::Parse, types::*};
+use crate::{csafe::CsafeResponse, parse::Parse, types::*};
 
 pub enum Pm5 {
     Information(Information),
@@ -15,9 +15,9 @@ impl Pm5 {
     pub fn rowing() -> &'static [Rowing] {
         &[
             Rowing::GeneralStatus,
-            Rowing::AdditionalStatusOne,
-            Rowing::StrokeData,
-            Rowing::AdditionalStrokeData,
+            // Rowing::AdditionalStatusOne,
+            // Rowing::StrokeData,
+            // Rowing::AdditionalStrokeData,
         ]
     }
 }
@@ -281,6 +281,8 @@ pub enum ServiceDataError {
     Id,
     #[error("unknown service")]
     UnkownService,
+    #[error("unknown service")]
+    InvalidCsafe,
 }
 
 pub trait ServiceData {
@@ -383,15 +385,27 @@ impl Service for Control {
 }
 
 #[derive(Debug)]
-pub enum ControlData {
-    Receive {},
+pub struct ControlData {
+    response: CsafeResponse,
+}
+
+impl ControlData {
+    pub fn is_ok(&self) -> bool {
+        matches!(self.response.status, crate::csafe::ResponseStatus::Ok)
+    }
+
+    pub fn data(&self) -> &[u8] {
+        &self.response.data
+    }
 }
 
 impl ServiceData for Control {
     type Data = ControlData;
 
     fn parse(uuid: Uuid, data: Vec<u8>) -> Result<Self::Data, ServiceDataError> {
-        Ok(ControlData::Receive {})
+        Ok(ControlData {
+            response: CsafeResponse::parse(&data).map_err(|_| ServiceDataError::InvalidCsafe)?,
+        })
     }
 }
 
@@ -447,6 +461,12 @@ mod tests {
     #[test]
     fn test_characteristic() {
         let id = Rowing::MultiplexedInformation.id();
+        assert_eq!(id, Uuid::from_u128(0xCE06003F_43E5_11E4_916C_0800200C9A66));
+    }
+
+    #[test]
+    fn test_recv_characteristic() {
+        let id = dbg!(Control::Receive.id());
         assert_eq!(id, Uuid::from_u128(0xCE06003F_43E5_11E4_916C_0800200C9A66));
     }
 

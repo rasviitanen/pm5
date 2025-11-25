@@ -1,3 +1,4 @@
+use crate::csafe::WorkoutCommand;
 use crate::services::{Control, Service};
 use anyhow::bail;
 use btleplug::api::{Central, Characteristic, Manager as _, Peripheral as _, ScanFilter};
@@ -12,6 +13,8 @@ use crate::services::{Pm5, Pm5Data, Rowing, RowingData, ServiceData, ServiceData
 const PERIPHERAL_NAME_MATCH_PREFIX_FILTER: &str = "PM5";
 
 type Receiver = mpsc::UnboundedReceiver<Result<Pm5Data, ServiceDataError>>;
+type CmdSender = mpsc::UnboundedSender<WorkoutCommand>;
+
 pub struct App {}
 
 impl App {
@@ -60,34 +63,46 @@ impl App {
         Ok(rx)
     }
 
-    // pub async fn control(&mut self, peripheral: &Peripheral) -> anyhow::Result<()> {
-    //     let (tx, rx) = mpsc::unbounded_channel();
+    pub async fn control(&mut self, peripheral: &Peripheral) -> anyhow::Result<CmdSender> {
+        let (tx, mut rx) = mpsc::unbounded_channel::<WorkoutCommand>();
 
-    //     let Some(control) = peripheral
-    //         .characteristics()
-    //         .iter()
-    //         .find(|c| c.service_uuid == Control::UUID)
-    //     else {
-    //         bail!("control service not supported");
-    //     };
+        let Some(send_characteristic) = peripheral
+            .characteristics()
+            .iter()
+            .find(|c| c.service_uuid == Control::UUID && c.uuid == Control::Receive.id())
+            .cloned()
+        else {
+            bail!("control service not supported");
+        };
 
-    //     peripheral.subscribe(control).await?;
-    //     peripheral.write(
-    //         characteristic,
-    //         &[],
-    //         btleplug::api::WriteType::WithoutResponse,
-    //     );
+        let Some(recv_characteristic) = peripheral
+            .characteristics()
+            .iter()
+            .find(|c| c.service_uuid == Control::UUID && c.uuid == Control::Transmit.id())
+            .cloned()
+        else {
+            bail!("control service not supported");
+        };
 
-    //     tokio::spawn(async move {
-    //         while let Some(data) = notification_stream.next().await {
-    //             let _ = tx.send(Pm5::parse(data.uuid, data.value));
-    //         }
-    //         println!("Disconnecting from peripheral");
-    //         peripheral.disconnect().await?;
-    //         Ok::<_, anyhow::Error>(())
-    //     });
-    //     Ok(rx)
-    // }
+        peripheral.subscribe(&recv_characteristic).await?;
+
+        let peripheral = peripheral.clone();
+        tokio::spawn(async move {
+            while let Some(command) = rx.recv().await {
+                println!("Sending command: {} - {:02X?}", command.name, command.data);
+                peripheral
+                    .write(
+                        &send_characteristic,
+                        &command.data,
+                        btleplug::api::WriteType::WithoutResponse,
+                    )
+                    .await?;
+            }
+            peripheral.unsubscribe(&recv_characteristic).await?;
+            Ok::<_, anyhow::Error>(())
+        });
+        Ok(tx)
+    }
 
     pub async fn connect<'a>(
         &mut self,

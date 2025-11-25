@@ -1,4 +1,5 @@
 use pm5::{
+    csafe::{CSafeBuffer, WorkoutCommand},
     workout::{WorkoutRecorder, WorkoutStorage},
     *,
 };
@@ -13,6 +14,15 @@ async fn main() -> anyhow::Result<()> {
     let peripherals = app.scan().await?;
     let connected = app.connect(&peripherals).await?;
     let mut ch = app.listen(connected.clone()).await?;
+    let mut cmd = app.control(&connected).await?;
+
+    cmd.send(WorkoutCommand {
+        name: String::from("yeet"),
+        data: CSafeBuffer::new()
+            .distance_splits(5000.into(), 400.into())
+            .finalize(),
+    })?;
+
     while let Some(msg) = ch.recv().await {
         match msg {
             Ok(data) => match data {
@@ -31,6 +41,17 @@ async fn main() -> anyhow::Result<()> {
                     }
                     _ => {}
                 },
+                services::Pm5Data::Control(r) => {
+                    if r.is_ok() {
+                        println!("Got response: {:02X?}", r.data());
+
+                        // if let Some(c) = start_workout.next() {
+                        //     cmd.send(c)?;
+                        // }
+                    } else {
+                        println!("Uh oh, got bad control response: {:02X?}", r.data());
+                    }
+                }
             },
             Err(err) => tracing::error!(%err, "failed to parse message"),
         }

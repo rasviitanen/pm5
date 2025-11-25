@@ -1,202 +1,177 @@
-use std::io::{self, Write};
+use anyhow::bail;
 
-use crate::{csafe_defs::*, types::WorkoutType};
+use crate::csafe_defs::*;
+use crate::types::*;
 
-#[derive(Debug)]
-pub struct CsafeBuffer {
-    data: Vec<u8>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ResponseStatus {
+    Ok,
+    Rejected,
+    BadFrame,
+    NotReady,
 }
 
-impl CsafeBuffer {
-    pub fn new() -> Self {
-        Self { data: Vec::new() }
-    }
-
-    /// Start a new frame
-    pub fn start_frame(&mut self) {
-        self.data.clear();
-        self.data.push(FRAME_START_BYTE);
-    }
-
-    /// Add a short command (no parameters)
-    pub fn add_short_command(&mut self, command: u8) {
-        self.data.push(command);
-    }
-
-    /// Add a long command with data
-    pub fn add_long_command(&mut self, command: u8, data: &[u8]) {
-        self.data.push(command);
-        self.data.push(data.len() as u8);
-        self.data.extend_from_slice(data);
-    }
-
-    /// Add a PM proprietary command wrapper
-    pub fn add_pm_command(&mut self, wrapper_cmd: u8, pm_cmd: u8, data: &[u8]) {
-        // Wrapper command byte
-        self.data.push(wrapper_cmd);
-        // Total length: pm_cmd (1 byte) + pm_data_length (1 byte) + data
-        let total_length = 1 + 1 + data.len();
-        self.data.push(total_length as u8);
-        // PM-specific command
-        self.data.push(pm_cmd);
-        // PM data length
-        self.data.push(data.len() as u8);
-        // PM data
-        self.data.extend_from_slice(data);
-    }
-
-    /// Calculate checksum (XOR of all bytes except start/end markers)
-    fn calculate_checksum(&self) -> u8 {
-        let mut checksum = 0u8;
-        // Skip the start byte (index 0)
-        for &byte in &self.data[1..] {
-            checksum ^= byte;
+impl ResponseStatus {
+    pub fn from_status_byte(status: u8) -> Self {
+        match status & PREVFRAMESTATUS_MSK {
+            PREVOK_FLG => ResponseStatus::Ok,
+            PREVREJECT_FLG => ResponseStatus::Rejected,
+            PREVBAD_FLG => ResponseStatus::BadFrame,
+            PREVNOTRDY_FLG => ResponseStatus::NotReady,
+            _ => ResponseStatus::BadFrame,
         }
-        checksum
+    }
+}
+
+#[derive(Debug)]
+pub struct CsafeResponse {
+    pub status: ResponseStatus,
+    pub data: Vec<u8>,
+}
+
+impl CsafeResponse {
+    pub fn parse(frame: &[u8]) -> anyhow::Result<Self> {
+        if frame.len() < 3 {
+            bail!("Frame too short");
+        }
+        if frame[0] != FRAME_START_BYTE {
+            bail!("Invalid start byte");
+        }
+        if frame[frame.len() - 1] != FRAME_END_BYTE {
+            bail!("Invalid end byte");
+        }
+
+        // Unstuff the frame
+        let unstuffed = Self::remove_stuffing(&frame[1..frame.len() - 1]);
+
+        if unstuffed.len() < 2 {
+            bail!("Response too short");
+        }
+
+        // First byte after unstuffing is status
+        let status = ResponseStatus::from_status_byte(unstuffed[0]);
+
+        // Rest is data (excluding checksum at the end)
+        let data = unstuffed[1..unstuffed.len() - 1].to_vec();
+
+        Ok(CsafeResponse { status, data })
     }
 
-    /// Apply byte stuffing to the frame
-    fn apply_stuffing(data: &[u8]) -> Vec<u8> {
-        let mut stuffed = Vec::new();
+    fn remove_stuffing(data: &[u8]) -> Vec<u8> {
+        let mut unstuffed = Vec::new();
+        let mut i = 0;
 
-        for &byte in data {
-            if byte >= 0xF0 && byte <= 0xF3 {
-                stuffed.push(FRAME_STUFF_BYTE);
-                stuffed.push(byte - FRAME_MAX_STUFF_OFFSET_BYTE);
+        while i < data.len() {
+            if data[i] == FRAME_STUFF_BYTE && i + 1 < data.len() {
+                unstuffed.push(data[i + 1] + FRAME_MAX_STUFF_OFFSET_BYTE);
+                i += 2;
             } else {
-                stuffed.push(byte);
+                unstuffed.push(data[i]);
+                i += 1;
             }
         }
 
-        stuffed
-    }
-
-    /// Finalize the frame with checksum and end byte
-    pub fn finalize(&mut self) -> Vec<u8> {
-        // Calculate checksum
-        let checksum = self.calculate_checksum();
-        self.data.push(checksum);
-
-        // Extract the payload (everything except start byte)
-        let payload = &self.data[1..];
-
-        // Apply byte stuffing to the payload
-        let mut result = vec![FRAME_START_BYTE];
-        result.extend(Self::apply_stuffing(payload));
-        result.push(FRAME_END_BYTE);
-
-        result
-    }
-
-    /// Get the current buffer without finalizing
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.data
+        unstuffed
     }
 }
 
-/// Builder for creating workout commands
-pub struct WorkoutCommandBuilder {
-    buffer: CsafeBuffer,
+/// Represents a single command in a workout sequence
+#[derive(Debug, Clone)]
+pub struct WorkoutCommand {
+    pub name: String,
+    pub data: Vec<u8>,
 }
 
-impl WorkoutCommandBuilder {
+pub struct CSafeBuffer {
+    buf: Vec<u8>,
+}
+
+impl CSafeBuffer {
     pub fn new() -> Self {
         Self {
-            buffer: CsafeBuffer::new(),
+            buf: vec![0xF1, 0x76, 0x00],
         }
     }
 
-    /// Set up a fixed distance workout
-    pub fn fixed_distance_workout(
-        &mut self,
-        distance_meters: u32,
-        workout_type: WorkoutType,
-    ) -> &mut Self {
-        self.buffer.start_frame();
-
-        // Set workout type
-        let workout_type_data = [workout_type as u8];
-        self.buffer
-            .add_pm_command(SETPMCFG_CMD, PM_SET_WORKOUTTYPE, &workout_type_data);
-
-        // Set workout duration (distance in meters)
-        // Format: distance (4 bytes, little-endian), units (1 byte)
-        let mut duration_data = Vec::new();
-        duration_data.extend_from_slice(&distance_meters.to_le_bytes());
-        duration_data.push(0x24); // DISTANCE_METER_0_0
-        self.buffer
-            .add_pm_command(SETPMCFG_CMD, PM_SET_WORKOUTDURATION, &duration_data);
-
+    fn append(mut self, cmd: PmLongPushCfgCmds, bytes: &[u8]) -> Self {
+        self.buf.extend_from_slice(&[cmd as u8, bytes.len() as u8]);
+        self.buf.extend_from_slice(&bytes);
         self
     }
 
-    /// Set up a fixed time workout
-    pub fn fixed_time_workout(&mut self, seconds: u32, workout_type: WorkoutType) -> &mut Self {
-        self.buffer.start_frame();
-
-        // Set workout type
-        let workout_type_data = [workout_type as u8];
-        self.buffer
-            .add_pm_command(SETPMCFG_CMD, PM_SET_WORKOUTTYPE, &workout_type_data);
-
-        // Set workout duration (time in centiseconds)
-        // Format: time (4 bytes, little-endian), units (1 byte = 0 for time)
-        let mut duration_data = Vec::new();
-        let centiseconds = seconds * 100;
-        duration_data.extend_from_slice(&centiseconds.to_le_bytes());
-        duration_data.push(0x00); // Time units
-        self.buffer
-            .add_pm_command(SETPMCFG_CMD, PM_SET_WORKOUTDURATION, &duration_data);
-
-        self
+    pub fn just_row(self) -> Self {
+        self.append(
+            PmLongPushCfgCmds::SetWorkoutType,
+            &[WorkoutType::JustrowSplits as u8],
+        )
+        .append(
+            PmLongPushCfgCmds::SetScreenState,
+            &[
+                ScreenType::Workout as u8,
+                ScreenValueWorkoutType::PrepareToRowWorkout as u8,
+            ],
+        )
     }
 
-    /// Start the workout (transition to "in use" state)
-    pub fn start(&mut self) -> &mut Self {
-        self.buffer.add_short_command(GOINUSE_CMD);
-        self
+    pub fn distance_splits(self, distance: Distance, splits: Distance) -> Self {
+        self.append(
+            PmLongPushCfgCmds::SetWorkoutType,
+            &[WorkoutType::FixedDistanceSplits as u8],
+        )
+        .append(
+            PmLongPushCfgCmds::SetWorkoutDuration,
+            [WorkoutDurationType::Distance as u8]
+                .into_iter()
+                .chain(distance.to_le_bytes().into_iter().rev())
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
+        .append(
+            PmLongPushCfgCmds::SetSplitDuration,
+            [WorkoutDurationType::Distance as u8]
+                .into_iter()
+                .chain(splits.to_le_bytes().into_iter().rev())
+                .collect::<Vec<_>>()
+                .as_slice(),
+        )
+        .append(PmLongPushCfgCmds::ConfigureWorkout, &[0x01])
+        .append(
+            PmLongPushCfgCmds::SetScreenState,
+            &[
+                ScreenType::Workout as u8,
+                ScreenValueWorkoutType::PrepareToRowWorkout as u8,
+            ],
+        )
     }
 
-    /// Build and return the final command buffer
-    pub fn build(&mut self) -> Vec<u8> {
-        self.buffer.finalize()
+    pub fn finalize(mut self) -> Vec<u8> {
+        let mut checksum = 0u8;
+        self.buf[2] = (self.buf.len() - 3) as u8;
+        for byte in &self.buf[1..] {
+            checksum ^= byte;
+        }
+        self.buf.push(checksum);
+        self.buf.push(0xF2);
+        self.buf
     }
 }
 
-/// Helper function to create a 5km race workout command
-pub fn create_5km_race_command() -> Vec<u8> {
-    WorkoutCommandBuilder::new()
-        .fixed_distance_workout(5000, WorkoutType::FixedDistanceNoSplits)
-        .start()
-        .build()
-}
-
-/// Helper function to create a timed workout command
-pub fn create_timed_workout_command(minutes: u32) -> Vec<u8> {
-    WorkoutCommandBuilder::new()
-        .fixed_time_workout(minutes * 60, WorkoutType::FixedTimeNoSplits)
-        .start()
-        .build()
-}
-
-// Example usage and testing
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_5km_race() {
-        let command = create_5km_race_command();
-        println!("5km race command: {:02X?}", command);
-        assert!(!command.is_empty());
-        assert_eq!(command[0], FRAME_START_BYTE);
-        assert_eq!(command[command.len() - 1], FRAME_END_BYTE);
+    fn test_just_row() {
+        println!("{:02X?}", CSafeBuffer::new().just_row().finalize())
     }
 
     #[test]
-    fn test_20min_workout() {
-        let command = create_timed_workout_command(20);
-        println!("20min workout command: {:02X?}", command);
-        assert!(!command.is_empty());
+    fn test_distance_splits() {
+        println!(
+            "{:02X?}",
+            CSafeBuffer::new()
+                .distance_splits(Distance(U24::new(2000)), Distance(U24::new(400)))
+                .finalize()
+        )
     }
 }

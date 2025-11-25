@@ -569,3 +569,9 @@ pub const BASE_YEAR: u32 = 1900;
 // Default time intervals (seconds)
 pub const DEFAULT_STATUSUPDATE_INTERVAL: u32 = 256;
 pub const DEFAULT_CMDUPLIST_INTERVAL: u32 = 256;
+
+// Data query commands
+pub const GETPMDATA_CMD: u8 = 0x7F;
+pub const PM_GET_STROKESTATE: u8 = 0xBF;
+pub const PM_GET_WORKDISTANCE: u8 = 0xA3;
+pub const PM_GET_WORKTIME: u8 = 0xA0;
