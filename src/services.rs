@@ -15,9 +15,9 @@ impl Pm5 {
     pub fn rowing() -> &'static [Rowing] {
         &[
             Rowing::GeneralStatus,
-            // Rowing::AdditionalStatusOne,
-            // Rowing::StrokeData,
-            // Rowing::AdditionalStrokeData,
+            Rowing::AdditionalStatusOne,
+            Rowing::StrokeData,
+            Rowing::AdditionalStrokeData,
         ]
     }
 }
@@ -257,19 +257,6 @@ pub trait Service {
 
     fn characteristic_is_part_of_service(characteristic: Uuid) -> bool {
         Self::UUID.as_u128() == (characteristic.as_u128() & !(0x000F << 96))
-    }
-}
-
-#[cfg(test)]
-mod tests22 {
-    use std::str::FromStr;
-
-    use super::*;
-
-    #[test]
-    fn test_name22() {
-        let uuid = Uuid::from_str("ce060031-43e5-11e4-916c-0800200c9a66").unwrap();
-        println!("{}", Uuid::from_u128(uuid.as_u128() & !(0x000F << 96)));
     }
 }
 

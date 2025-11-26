@@ -2,6 +2,7 @@ use futures::TryStreamExt;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use time::UtcDateTime;
 use uuid::Uuid;
 
@@ -9,6 +10,28 @@ use crate::{
     services::{AdditionalStatusOne, AdditionalStrokeData, GeneralStatus, StrokeData},
     types::*,
 };
+
+// Type-safe column names
+pub mod columns {
+    pub const TIMESTAMP: &str = "timestamp";
+    pub const TIMESTAMP_ADDITIONAL: &str = "timestamp_additional";
+    pub const TIMESTAMP_STROKE: &str = "timestamp_stroke";
+    pub const ELAPSED_TIME_MS: &str = "elapsed_time_ms";
+    pub const DISTANCE_M: &str = "distance_m";
+    pub const DISTANCE_M_STROKE: &str = "distance_m_stroke";
+    pub const DRAG_FACTOR: &str = "drag_factor";
+    pub const HEART_RATE_BPM: &str = "heart_rate_bpm";
+    pub const STROKE_RATE: &str = "stroke_rate";
+    pub const PACE_MS_PER_500M: &str = "pace_ms_per_500m";
+    pub const DRIVE_LENGTH_CM: &str = "drive_length_cm";
+    pub const DRIVE_TIME_MS: &str = "drive_time_ms";
+    pub const PEAK_DRIVE_FORCE_N: &str = "peak_drive_force_n";
+    pub const AVG_DRIVE_FORCE_N: &str = "avg_drive_force_n";
+    pub const WORK_PER_STROKE_J: &str = "work_per_stroke_j";
+    pub const POWER_WATTS: &str = "power_watts";
+    pub const DURATION_MS: &str = "duration_ms";
+    pub const POWER_ZONE: &str = "power_zone";
+}
 
 #[derive(Debug, Clone)]
 pub struct WorkoutSample;
@@ -24,10 +47,10 @@ impl WorkoutSample {
         let drag_factors: Vec<u32> = samples.iter().map(|s| s.3 .0 as u32).collect();
 
         DataFrame::new(vec![
-            Series::new("timestamp".into(), timestamps).into(),
-            Series::new("elapsed_time_ms".into(), elapsed_times).into(),
-            Series::new("distance_m".into(), distances).into(),
-            Series::new("drag_factor".into(), drag_factors).into(),
+            Series::new(columns::TIMESTAMP.into(), timestamps).into(),
+            Series::new(columns::ELAPSED_TIME_MS.into(), elapsed_times).into(),
+            Series::new(columns::DISTANCE_M.into(), distances).into(),
+            Series::new(columns::DRAG_FACTOR.into(), drag_factors).into(),
         ])
     }
 
@@ -42,11 +65,11 @@ impl WorkoutSample {
         let paces: Vec<u32> = samples.iter().map(|s| s.4 .0 as u32).collect();
 
         DataFrame::new(vec![
-            Series::new("timestamp_additional".into(), timestamps).into(),
-            Series::new("elapsed_time_ms".into(), elapsed_times).into(),
-            Series::new("heart_rate_bpm".into(), heart_rates).into(),
-            Series::new("stroke_rate".into(), stroke_rates).into(),
-            Series::new("pace_ms_per_500m".into(), paces).into(),
+            Series::new(columns::TIMESTAMP_ADDITIONAL.into(), timestamps).into(),
+            Series::new(columns::ELAPSED_TIME_MS.into(), elapsed_times).into(),
+            Series::new(columns::HEART_RATE_BPM.into(), heart_rates).into(),
+            Series::new(columns::STROKE_RATE.into(), stroke_rates).into(),
+            Series::new(columns::PACE_MS_PER_500M.into(), paces).into(),
         ])
     }
 
@@ -73,14 +96,14 @@ impl WorkoutSample {
         let work_per_strokes: Vec<u32> = samples.iter().map(|s| s.7 .0 as u32).collect();
 
         DataFrame::new(vec![
-            Series::new("timestamp_stroke".into(), timestamps).into(),
-            Series::new("elapsed_time_ms".into(), elapsed_times).into(),
-            Series::new("distance_m_stroke".into(), distances).into(),
-            Series::new("drive_length_cm".into(), drive_lengths).into(),
-            Series::new("drive_time_ms".into(), drive_times).into(),
-            Series::new("peak_drive_force_n".into(), peak_forces).into(),
-            Series::new("avg_drive_force_n".into(), avg_forces).into(),
-            Series::new("work_per_stroke_j".into(), work_per_strokes).into(),
+            Series::new(columns::TIMESTAMP_STROKE.into(), timestamps).into(),
+            Series::new(columns::ELAPSED_TIME_MS.into(), elapsed_times).into(),
+            Series::new(columns::DISTANCE_M_STROKE.into(), distances).into(),
+            Series::new(columns::DRIVE_LENGTH_CM.into(), drive_lengths).into(),
+            Series::new(columns::DRIVE_TIME_MS.into(), drive_times).into(),
+            Series::new(columns::PEAK_DRIVE_FORCE_N.into(), peak_forces).into(),
+            Series::new(columns::AVG_DRIVE_FORCE_N.into(), avg_forces).into(),
+            Series::new(columns::WORK_PER_STROKE_J.into(), work_per_strokes).into(),
         ])
     }
 }
@@ -90,12 +113,61 @@ pub struct WorkoutSummary {
     pub workout_id: Uuid,
     pub duration_ms: Time,
     pub total_distance_m: Distance,
-
     pub avg_heart_rate_bpm: Option<HeartRate>,
     pub max_heart_rate_bpm: Option<HeartRate>,
     pub avg_power_watts: Option<Power>,
     pub avg_stroke_rate: Option<StrokeRate>,
     pub avg_pace_ms_per_500m: Option<Pace>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PowerZoneStats {
+    pub zone_name: String,
+    pub avg_power_watts: Option<f64>,
+    pub avg_heart_rate_bpm: Option<f64>,
+    pub time_in_zone_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WorkoutDetails {
+    pub high_intensity_sample_count: usize,
+    pub power_zone_distribution: Vec<PowerZoneStats>,
+}
+
+impl WorkoutDetails {
+    /// Create from a power zone distribution DataFrame
+    fn from_zone_df(zone_df: &DataFrame, high_intensity_count: usize) -> PolarsResult<Self> {
+        let mut distribution = Vec::new();
+
+        for i in 0..zone_df.height() {
+            let row = zone_df.get(i).ok_or_else(|| {
+                PolarsError::ComputeError(format!("Failed to get row {}", i).into())
+            })?;
+
+            // Extract string using pattern matching on AnyValue
+            let zone_name = match &row[0] {
+                polars::prelude::AnyValue::String(s) => s.to_string(),
+                polars::prelude::AnyValue::StringOwned(s) => s.to_string(),
+                _ => "Unknown".to_string(),
+            };
+
+            let avg_power = row[1].try_extract::<f64>().ok();
+            let avg_hr = row[2].try_extract::<f64>().ok();
+            let time_in_zone = row[3].try_extract::<f64>().unwrap_or(0.0) as u64;
+
+            distribution.push(PowerZoneStats {
+                zone_name,
+                avg_power_watts: avg_power,
+                avg_heart_rate_bpm: avg_hr,
+                time_in_zone_ms: time_in_zone,
+            });
+        }
+
+        Ok(WorkoutDetails {
+            high_intensity_sample_count: high_intensity_count,
+            power_zone_distribution: distribution,
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -234,9 +306,12 @@ impl WorkoutRecorder {
         let timestamp = UtcDateTime::now().unix_timestamp_nanos();
 
         let new_df = DataFrame::new(vec![
-            Column::new("timestamp_stroke".into(), vec![timestamp as i64]),
-            Column::new("elapsed_time_ms".into(), vec![elapsed_time.0.as_u32()]),
-            Column::new("power_watts".into(), vec![stroke_power.0 as u32]),
+            Column::new(columns::TIMESTAMP_STROKE.into(), vec![timestamp as i64]),
+            Column::new(
+                columns::ELAPSED_TIME_MS.into(),
+                vec![elapsed_time.0.as_u32()],
+            ),
+            Column::new(columns::POWER_WATTS.into(), vec![stroke_power.0 as u32]),
         ])
         .unwrap();
 
@@ -267,8 +342,8 @@ impl WorkoutRecorder {
         if !self.additional_status_df.is_empty() {
             merged = merged.join(
                 additional_lf,
-                [col("elapsed_time_ms")],
-                [col("elapsed_time_ms")],
+                [col(columns::ELAPSED_TIME_MS)],
+                [col(columns::ELAPSED_TIME_MS)],
                 JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
             );
         }
@@ -277,30 +352,32 @@ impl WorkoutRecorder {
         if !self.stroke_data_df.is_empty() {
             merged = merged.join(
                 stroke_lf,
-                [col("elapsed_time_ms")],
-                [col("elapsed_time_ms")],
+                [col(columns::ELAPSED_TIME_MS)],
+                [col(columns::ELAPSED_TIME_MS)],
                 JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
             );
         }
 
-        // Join stroke data if it has data
+        // Join additional stroke data if it has data
         if !self.additional_stroke_data_df.is_empty() {
             merged = merged.join(
                 additional_stroke_lf,
-                [col("elapsed_time_ms")],
-                [col("elapsed_time_ms")],
+                [col(columns::ELAPSED_TIME_MS)],
+                [col(columns::ELAPSED_TIME_MS)],
                 JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
             );
         }
 
         // Sort by elapsed_time and deduplicate
-        merged.sort(["elapsed_time_ms"], Default::default()).unique(
-            Some(Selector::ByName {
-                names: Arc::new(["elapsed_time_ms".into()]),
-                strict: false,
-            }),
-            UniqueKeepStrategy::Last,
-        )
+        merged
+            .sort([columns::ELAPSED_TIME_MS], Default::default())
+            .unique(
+                Some(Selector::ByName {
+                    names: Arc::new([columns::ELAPSED_TIME_MS.into()]),
+                    strict: false,
+                }),
+                UniqueKeepStrategy::Last,
+            )
     }
 
     /// Get individual DataFrames for inspection
@@ -399,12 +476,13 @@ impl Workout {
         tokio::task::block_in_place(|| {
             let agg_df = lf
                 .select([
-                    col("heart_rate_bpm").mean().alias("avg_hr"),
-                    col("heart_rate_bpm").max().alias("max_hr"),
-                    col("power_watts").mean().alias("avg_power"),
-                    col("stroke_rate").mean().alias("avg_stroke_rate"),
-                    col("elapsed_time_ms").max().alias("total_time"),
-                    col("distance_m").max().alias("total_distance"),
+                    col(columns::HEART_RATE_BPM).mean().alias("avg_hr"),
+                    col(columns::HEART_RATE_BPM).max().alias("max_hr"),
+                    col(columns::POWER_WATTS).mean().alias("avg_power"),
+                    col(columns::STROKE_RATE).mean().alias("avg_stroke_rate"),
+                    col(columns::ELAPSED_TIME_MS).max().alias("total_time"),
+                    col(columns::DISTANCE_M).max().alias("total_distance"),
+                    col(columns::PACE_MS_PER_500M).mean().alias("avg_pace"),
                 ])
                 .collect()?;
 
@@ -427,6 +505,7 @@ impl Workout {
                 .try_extract::<f64>()
                 .ok()
                 .map(|v| Distance(U24::new(v as _)));
+            let avg_pace = row[6].try_extract::<f64>().ok().map(|v| Pace(v as _));
 
             Ok(WorkoutSummary {
                 workout_id: self.id,
@@ -436,28 +515,30 @@ impl Workout {
                 max_heart_rate_bpm: max_hr,
                 avg_power_watts: avg_power,
                 avg_stroke_rate,
-                avg_pace_ms_per_500m: None,
+                avg_pace_ms_per_500m: avg_pace,
             })
         })
     }
 
-    pub fn generate_details(&self) -> anyhow::Result<()> {
+    pub fn generate_details(&self, profile: &Profile) -> PolarsResult<WorkoutDetails> {
         tokio::task::block_in_place(|| {
             let lf = self.df.clone().lazy();
-            let with_zones = WorkoutAnalytics::power_zones(lf.clone());
+            let with_zones = WorkoutAnalytics::power_zones(lf.clone(), profile);
             let with_zones = WorkoutAnalytics::delta_time(with_zones);
+
             let high_intensity = with_zones
                 .clone()
-                .filter(col("power_watts").gt(lit(250)))
+                .filter(col(columns::POWER_WATTS).gt(lit(250)))
                 .collect()?;
 
-            println!("High intensity samples: {}", high_intensity.height());
+            let high_intensity_count = high_intensity.height();
+
             let zone_summary = with_zones
-                .group_by([col("power_zone")])
+                .group_by([col(columns::POWER_ZONE)])
                 .agg([
-                    col("power_watts").mean().alias("avg_power"),
-                    col("heart_rate_bpm").mean().alias("avg_hr"),
-                    col("duration_ms").sum().alias("time_in_zone_ms"),
+                    col(columns::POWER_WATTS).mean().alias("avg_power"),
+                    col(columns::HEART_RATE_BPM).mean().alias("avg_hr"),
+                    col(columns::DURATION_MS).sum().alias("time_in_zone_ms"),
                 ])
                 .sort(
                     ["time_in_zone_ms"],
@@ -465,9 +546,7 @@ impl Workout {
                 )
                 .collect()?;
 
-            println!("\nPower Zone Distribution:");
-            println!("{}", zone_summary);
-            Ok::<_, anyhow::Error>(())
+            WorkoutDetails::from_zone_df(&zone_summary, high_intensity_count)
         })
     }
 }
@@ -478,28 +557,55 @@ pub struct WorkoutAnalytics;
 impl WorkoutAnalytics {
     pub fn delta_time(lf: LazyFrame) -> LazyFrame {
         lf.with_column(
-            (col("elapsed_time_ms") - col("elapsed_time_ms").shift(lit(1))).alias("duration_ms"),
+            (col(columns::ELAPSED_TIME_MS) - col(columns::ELAPSED_TIME_MS).shift(lit(1)))
+                .alias(columns::DURATION_MS),
         )
         .with_column(
-            when(col("duration_ms").is_null())
+            when(col(columns::DURATION_MS).is_null())
                 .then(lit(0))
-                .otherwise(col("duration_ms"))
-                .alias("duration_ms"),
+                .otherwise(col(columns::DURATION_MS))
+                .alias(columns::DURATION_MS),
         )
     }
 
-    pub fn power_zones(lf: LazyFrame) -> LazyFrame {
+    pub fn power_zones(lf: LazyFrame, profile: &Profile) -> LazyFrame {
         lf.with_column(
-            when(col("power_watts").lt(lit(150)))
-                .then(lit("Zone 1: Recovery"))
-                .when(col("power_watts").lt(lit(200)))
-                .then(lit("Zone 2: Endurance"))
-                .when(col("power_watts").lt(lit(250)))
-                .then(lit("Zone 3: Tempo"))
-                .when(col("power_watts").lt(lit(300)))
+            when(col(columns::POWER_WATTS).gt_eq(lit(profile.zones.z5.0)))
+                .then(lit("Zone 5: VO2 Max"))
+                .when(col(columns::POWER_WATTS).gt_eq(lit(profile.zones.z4.0)))
                 .then(lit("Zone 4: Threshold"))
-                .otherwise(lit("Zone 5: VO2 Max"))
-                .alias("power_zone"),
+                .when(col(columns::POWER_WATTS).gt_eq(lit(profile.zones.z3.0)))
+                .then(lit("Zone 3: Tempo"))
+                .when(col(columns::POWER_WATTS).gt_eq(lit(profile.zones.z2.0)))
+                .then(lit("Zone 2: Endurance"))
+                .otherwise(lit("Zone 1: Recovery"))
+                .alias(columns::POWER_ZONE),
         )
+    }
+}
+
+#[derive(Debug)]
+pub struct PowerZones {
+    pub z2: Power,
+    pub z3: Power,
+    pub z4: Power,
+    pub z5: Power,
+}
+
+#[derive(Debug)]
+pub struct Profile {
+    pub zones: PowerZones,
+}
+
+impl Default for Profile {
+    fn default() -> Self {
+        Self {
+            zones: PowerZones {
+                z2: Power(110),
+                z3: Power(120),
+                z4: Power(130),
+                z5: Power(140),
+            },
+        }
     }
 }

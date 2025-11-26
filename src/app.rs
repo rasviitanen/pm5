@@ -34,15 +34,13 @@ impl App {
             println!("Starting scan...");
             adapter
                 .start_scan(ScanFilter {
-                    services: vec![
-                        //crate::services::Information::UUID,
-                        //crate::services::Rowing::UUID,
-                    ],
+                    services: vec![crate::services::Rowing::UUID],
                 })
                 .await
                 .expect("Can't scan BLE adapter for connected devices...");
             time::sleep(Duration::from_secs(2)).await;
             peripherals.extend(adapter.peripherals().await?);
+            adapter.stop_scan().await?;
         }
 
         Ok(peripherals)
