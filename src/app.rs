@@ -13,7 +13,7 @@ use crate::services::{Pm5, Pm5Data, Rowing, RowingData, ServiceData, ServiceData
 const PERIPHERAL_NAME_MATCH_PREFIX_FILTER: &str = "PM5";
 
 type Receiver = mpsc::UnboundedReceiver<Result<Pm5Data, ServiceDataError>>;
-type CmdSender = mpsc::UnboundedSender<WorkoutCommand>;
+type CmdSender = mpsc::UnboundedSender<Vec<u8>>;
 
 pub struct App {}
 
@@ -64,7 +64,7 @@ impl App {
     }
 
     pub async fn control(&mut self, peripheral: &Peripheral) -> anyhow::Result<CmdSender> {
-        let (tx, mut rx) = mpsc::unbounded_channel::<WorkoutCommand>();
+        let (tx, mut rx) = mpsc::unbounded_channel::<Vec<u8>>();
 
         let Some(send_characteristic) = peripheral
             .characteristics()
@@ -89,11 +89,11 @@ impl App {
         let peripheral = peripheral.clone();
         tokio::spawn(async move {
             while let Some(command) = rx.recv().await {
-                println!("Sending command: {} - {:02X?}", command.name, command.data);
+                println!("Sending command: {:02X?}", command);
                 peripheral
                     .write(
                         &send_characteristic,
-                        &command.data,
+                        &command,
                         btleplug::api::WriteType::WithoutResponse,
                     )
                     .await?;

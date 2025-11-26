@@ -93,7 +93,13 @@ impl CSafeBuffer {
         }
     }
 
-    fn append(mut self, cmd: PmLongPushCfgCmds, bytes: &[u8]) -> Self {
+    pub fn append(mut self, cmd: PmLongPushCfgCmds, bytes: &[u8]) -> Self {
+        self.buf.extend_from_slice(&[cmd as u8, bytes.len() as u8]);
+        self.buf.extend_from_slice(&bytes);
+        self
+    }
+
+    pub fn append_data_cmd(mut self, cmd: PmLongPushDataCmds, bytes: &[u8]) -> Self {
         self.buf.extend_from_slice(&[cmd as u8, bytes.len() as u8]);
         self.buf.extend_from_slice(&bytes);
         self

@@ -1,5 +1,8 @@
+use std::time::Duration;
+
 use pm5::{
     csafe::{CSafeBuffer, WorkoutCommand},
+    display::Pm5Bitmap,
     workout::{WorkoutRecorder, WorkoutStorage},
     *,
 };
@@ -16,12 +19,28 @@ async fn main() -> anyhow::Result<()> {
     let mut ch = app.listen(connected.clone()).await?;
     let mut cmd = app.control(&connected).await?;
 
-    cmd.send(WorkoutCommand {
-        name: String::from("yeet"),
-        data: CSafeBuffer::new()
+    // let mut screen = pm5::display::Pm5Bitmap::new();
+    // screen.draw_text(10, 10, "LEADERBOARD");
+    // screen.draw_text(10, 30, "1. Rasmus");
+    // screen.draw_text(10, 45, "2. Simon");
+
+    // let mut screen = Pm5Bitmap::new();
+    // for y in 0..64 {
+    //     for x in 0..240 {
+    //         screen.set_pixel(x, y, (x + y) % 2 == 0);
+    //     }
+    // }
+
+    // for packet in screen.display_bitmap() {
+    //     cmd.send(packet);
+    // }
+    // let mut packets = screen.display_bitmap().into_iter();
+
+    cmd.send(
+        CSafeBuffer::new()
             .distance_splits(5000.into(), 400.into())
             .finalize(),
-    })?;
+    )?;
 
     while let Some(msg) = ch.recv().await {
         match msg {
@@ -51,6 +70,10 @@ async fn main() -> anyhow::Result<()> {
                     } else {
                         println!("Uh oh, got bad control response: {:02X?}", r.data());
                     }
+
+                    // if let Some(packet) = packets.next() {
+                    //     cmd.send(packet)?;
+                    // }
                 }
             },
             Err(err) => tracing::error!(%err, "failed to parse message"),
