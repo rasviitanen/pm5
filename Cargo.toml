@@ -12,7 +12,7 @@ anyhow = "1.0"
 byteorder = "1.5"
 thiserror = "2.0"
 num_enum = "0.7"
-polars = { version = "0.52.0", features = ["lazy", "rolling_window_by", "rolling_window", "strings", "concat_str", "timezones", "parquet", "cloud"] }
+polars = { version = "0.52.0", features = ["dtype-u8", "dtype-u16", "lazy", "rolling_window_by", "rolling_window", "strings", "concat_str", "timezones", "parquet", "cloud"] }
 serde = { version = "1.0", features = ["derive"] }
 time = { version = "0.3", features = ["serde"] }
 serde_json = "1.0.145"

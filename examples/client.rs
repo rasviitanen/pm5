@@ -70,6 +70,7 @@ async fn main() -> anyhow::Result<()> {
     let summary = workout.generate_summary()?;
     println!("Workout summary: {:#?}", summary);
     let profile = Profile::default();
-    workout.generate_details(&profile)?;
+    dbg!(workout.generate_summary()?);
+    dbg!(workout.generate_details(&profile)?);
     Ok(())
 }

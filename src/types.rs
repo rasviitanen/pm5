@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 
@@ -153,8 +155,48 @@ impl std::ops::DerefMut for U24 {
     }
 }
 // u24, little-endian
-#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Default, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Time(pub U24);
+
+impl Time {
+    pub fn new(v: u32) -> Self {
+        Self(U24(v))
+    }
+
+    pub fn from_secs(v: f32) -> Self {
+        Self(U24((v * 100.0) as u32))
+    }
+
+    pub fn as_u32(self) -> u32 {
+        self.0.as_u32()
+    }
+
+    pub fn as_secs(self) -> f32 {
+        self.0 .0 as f32 / 100.0
+    }
+
+    pub fn as_hours_mins_secs(self) -> (u32, u32, u32) {
+        let total_secs = self.0.0 / 100;
+        let hours = total_secs / 3600;
+        let minutes = (total_secs % 3600) / 60;
+        let secs = total_secs % 60;
+        (hours, minutes, secs)
+    }
+}
+
+impl std::fmt::Display for Time {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (hours, minutes, secs) = self.as_hours_mins_secs();
+        write!(f, "{:02}:{:02}:{:02}", hours, minutes, secs)
+    }
+}
+
+impl std::fmt::Debug for Time {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Time").field(&self.to_string()).finish()
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct LogEntryTime(pub u16);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
@@ -162,12 +204,49 @@ pub struct LogEntryDate(pub u16);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct StrokeRecoveryTime(pub u16);
 // u24, little-endian
-#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Default, Serialize, Deserialize, Clone, Copy)]
 pub struct Distance(pub U24);
 
 impl Distance {
+    pub fn new(v: u32) -> Self {
+        Self(U24(v))
+    }
+
+    pub fn as_u32(self) -> u32 {
+        self.0.as_u32()
+    }
+
+    pub fn as_meters(self) -> f32 {
+        self.0 .0 as f32 / 10.0
+    }
+
+    pub fn from_meters(meters: f32) -> Self {
+        Self(U24::new((meters * 10.0) as u32))
+    }
+
+    pub fn as_km_and_meters(self) -> (u32, u32) {
+        (self.0.0 / 10000, (self.0.0 / 10) % 1000)
+    }
+
     pub fn to_le_bytes(self) -> [u8; 4] {
         self.0.as_u32().to_le_bytes()
+    }
+}
+
+impl std::fmt::Debug for Distance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Distance").field(&self.to_string()).finish()
+    }
+}
+
+impl std::fmt::Display for Distance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (km, m) = self.as_km_and_meters();
+        if km < 10 {
+            write!(f, "{}m", km * 1000 + m)
+        } else {
+            write!(f, "{km:02}.{:02}km", m / 10)
+        }
     }
 }
 
@@ -181,14 +260,66 @@ impl From<u32> for Distance {
 pub struct RestTime(pub u16);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct RestDistance(pub u16);
-#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Default, Serialize, Deserialize, Clone, Copy)]
 pub struct Pace(pub u16);
+
+impl Pace {
+    pub fn new(v: u16) -> Self {
+        Self(v)
+    }
+
+    pub fn from_secs(v: f32) -> Self {
+        Self((v * 100.0) as u16)
+    }
+
+    pub fn as_secs(self) -> f32 {
+        self.0 as f32 / 100.0
+    }
+
+    pub fn as_mins_secs(self) -> (u16, u16) {
+        let total_secs = self.0 / 100;
+        let minutes = (total_secs % 3600) / 60;
+        let secs = total_secs % 60;
+        (minutes, secs)
+    }
+}
+
+impl std::fmt::Debug for Pace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("Pace").field(&self.to_string()).finish()
+    }
+}
+
+impl std::fmt::Display for Pace {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (minutes, secs) = self.as_mins_secs();
+        write!(f, "{:02}:{:02}", minutes, secs)
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Speed(pub u16);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct StrokeRate(pub u8);
-#[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Default, Serialize, Deserialize, Clone, Copy)]
 pub struct HeartRate(pub u8);
+
+impl std::fmt::Debug for HeartRate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("HeartRate").field(&self.to_string()).finish()
+    }
+}
+
+impl std::fmt::Display for HeartRate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0 == u8::MAX {
+            write!(f, "-")
+        } else {
+            write!(f, "{}", self.0)
+        }
+    }
+}
+
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct DragFactor(pub u8);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
@@ -990,4 +1121,33 @@ pub enum DisplayUpdateRate {
     Hz4,
     /// 2Hz (2).
     Hz2,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pace_display() {
+        assert_eq!("02:05", Pace(12595).to_string());
+    }
+
+    #[test]
+    fn test_distance_display() {
+        let tests = [
+            (12300, "1230m"),
+            (99999, "9999m"),
+            (10_0000, "10.00km"),
+            (12_3455, "12.34km"),
+            (15_0004, "15.00km"),
+        ];
+        for (input, expect) in tests {
+            assert_eq!(Distance::new(input).to_string(), expect);
+        }
+    }
+
+    #[test]
+    fn test_duration_display() {
+        assert_eq!("03:29:55", Time::new(1259515).to_string());
+    }
 }

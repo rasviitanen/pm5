@@ -11,113 +11,56 @@ use crate::{
     types::*,
 };
 
-// Type-safe column names
 pub mod columns {
-    pub const TIMESTAMP: &str = "timestamp";
-    pub const TIMESTAMP_ADDITIONAL: &str = "timestamp_additional";
-    pub const TIMESTAMP_STROKE: &str = "timestamp_stroke";
-    pub const ELAPSED_TIME_MS: &str = "elapsed_time_ms";
-    pub const DISTANCE_M: &str = "distance_m";
-    pub const DISTANCE_M_STROKE: &str = "distance_m_stroke";
+    pub const ELAPSED_TIME: &str = "elapsed_time";
+    pub const DISTANCE: &str = "distance";
+    pub const WORKOUT_TYPE: &str = "workout_type";
+    pub const INTERVAL_TYPE: &str = "interval_type";
+    pub const WORKOUT_STATE: &str = "workout_state";
+    pub const ROWING_STATE: &str = "rowing_state";
+    pub const STROKE_STATE: &str = "stroke_state";
+    pub const TOTAL_WORK_DISTANCE: &str = "total_work_distance";
+    pub const WORKOUT_DURATION: &str = "workout_duration";
+    pub const WORKOUT_DURATION_TYPE: &str = "workout_duration_type";
     pub const DRAG_FACTOR: &str = "drag_factor";
-    pub const HEART_RATE_BPM: &str = "heart_rate_bpm";
+
+    pub const STROKE_POWER: &str = "stroke_power";
+    pub const STROKE_CALORIES: &str = "stroke_calories";
+    pub const STROKE_COUNT: &str = "stroke_count";
+    pub const PROJECTED_WORK_TIME: &str = "projected_work_time";
+    pub const PROJECTED_WORK_DISTANCE: &str = "projected_work_distance";
+
+    pub const DRIVE_LENGTH: &str = "drive_length";
+    pub const DRIVE_TIME: &str = "drive_time";
+    pub const STROKE_RECOVERY: &str = "stroke_recovery";
+    pub const STROKE_DISTANCE: &str = "stroke_distance";
+    pub const PEAK_DRIVE_FORCE: &str = "peak_drive_force";
+    pub const AVG_DRIVE_FORCE: &str = "avg_drive_force";
+    pub const WORK_PER_STROKE: &str = "work_per_stroke";
+
+    pub const SPEED: &str = "speed";
     pub const STROKE_RATE: &str = "stroke_rate";
-    pub const PACE_MS_PER_500M: &str = "pace_ms_per_500m";
-    pub const DRIVE_LENGTH_CM: &str = "drive_length_cm";
-    pub const DRIVE_TIME_MS: &str = "drive_time_ms";
-    pub const PEAK_DRIVE_FORCE_N: &str = "peak_drive_force_n";
-    pub const AVG_DRIVE_FORCE_N: &str = "avg_drive_force_n";
-    pub const WORK_PER_STROKE_J: &str = "work_per_stroke_j";
-    pub const POWER_WATTS: &str = "power_watts";
-    pub const DURATION_MS: &str = "duration_ms";
+    pub const HEART_RATE: &str = "heart_rate";
+    pub const CURRENT_PACE: &str = "current_pace";
+    pub const AVERAGE_PACE: &str = "average_pace";
+    pub const REST_DISTANCE: &str = "rest_distance";
+    pub const REST_TIME: &str = "rest_time";
+
+    pub const DURATION: &str = "duration";
     pub const POWER_ZONE: &str = "power_zone";
+
 }
 
-#[derive(Debug, Clone)]
-pub struct WorkoutSample;
-
-impl WorkoutSample {
-    /// Convert general status samples to a Polars DataFrame
-    pub fn general_to_dataframe(
-        samples: &[(i128, Time, Distance, DragFactor)],
-    ) -> PolarsResult<DataFrame> {
-        let timestamps: Vec<i64> = samples.iter().map(|s| s.0 as i64).collect();
-        let elapsed_times: Vec<u32> = samples.iter().map(|s| s.1 .0.as_u32()).collect();
-        let distances: Vec<u32> = samples.iter().map(|s| s.2 .0.as_u32()).collect();
-        let drag_factors: Vec<u32> = samples.iter().map(|s| s.3 .0 as u32).collect();
-
-        DataFrame::new(vec![
-            Series::new(columns::TIMESTAMP.into(), timestamps).into(),
-            Series::new(columns::ELAPSED_TIME_MS.into(), elapsed_times).into(),
-            Series::new(columns::DISTANCE_M.into(), distances).into(),
-            Series::new(columns::DRAG_FACTOR.into(), drag_factors).into(),
-        ])
-    }
-
-    /// Convert additional status samples to a Polars DataFrame
-    pub fn additional_to_dataframe(
-        samples: &[(i128, Time, HeartRate, StrokeRate, Pace)],
-    ) -> PolarsResult<DataFrame> {
-        let timestamps: Vec<i64> = samples.iter().map(|s| s.0 as i64).collect();
-        let elapsed_times: Vec<u32> = samples.iter().map(|s| s.1 .0.as_u32()).collect();
-        let heart_rates: Vec<u32> = samples.iter().map(|s| s.2 .0 as u32).collect();
-        let stroke_rates: Vec<u32> = samples.iter().map(|s| s.3 .0 as u32).collect();
-        let paces: Vec<u32> = samples.iter().map(|s| s.4 .0 as u32).collect();
-
-        DataFrame::new(vec![
-            Series::new(columns::TIMESTAMP_ADDITIONAL.into(), timestamps).into(),
-            Series::new(columns::ELAPSED_TIME_MS.into(), elapsed_times).into(),
-            Series::new(columns::HEART_RATE_BPM.into(), heart_rates).into(),
-            Series::new(columns::STROKE_RATE.into(), stroke_rates).into(),
-            Series::new(columns::PACE_MS_PER_500M.into(), paces).into(),
-        ])
-    }
-
-    /// Convert stroke data samples to a Polars DataFrame
-    pub fn stroke_to_dataframe(
-        samples: &[(
-            i128,
-            Time,
-            Distance,
-            DriveLength,
-            DriveTime,
-            Force,
-            Force,
-            Work,
-        )],
-    ) -> PolarsResult<DataFrame> {
-        let timestamps: Vec<i64> = samples.iter().map(|s| s.0 as i64).collect();
-        let elapsed_times: Vec<u32> = samples.iter().map(|s| s.1 .0.as_u32()).collect();
-        let distances: Vec<u32> = samples.iter().map(|s| s.2 .0.as_u32()).collect();
-        let drive_lengths: Vec<u32> = samples.iter().map(|s| s.3 .0 as u32).collect();
-        let drive_times: Vec<u32> = samples.iter().map(|s| s.4 .0 as u32).collect();
-        let peak_forces: Vec<u32> = samples.iter().map(|s| s.5 .0 as u32).collect();
-        let avg_forces: Vec<u32> = samples.iter().map(|s| s.6 .0 as u32).collect();
-        let work_per_strokes: Vec<u32> = samples.iter().map(|s| s.7 .0 as u32).collect();
-
-        DataFrame::new(vec![
-            Series::new(columns::TIMESTAMP_STROKE.into(), timestamps).into(),
-            Series::new(columns::ELAPSED_TIME_MS.into(), elapsed_times).into(),
-            Series::new(columns::DISTANCE_M_STROKE.into(), distances).into(),
-            Series::new(columns::DRIVE_LENGTH_CM.into(), drive_lengths).into(),
-            Series::new(columns::DRIVE_TIME_MS.into(), drive_times).into(),
-            Series::new(columns::PEAK_DRIVE_FORCE_N.into(), peak_forces).into(),
-            Series::new(columns::AVG_DRIVE_FORCE_N.into(), avg_forces).into(),
-            Series::new(columns::WORK_PER_STROKE_J.into(), work_per_strokes).into(),
-        ])
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
 pub struct WorkoutSummary {
     pub workout_id: Uuid,
-    pub duration_ms: Time,
-    pub total_distance_m: Distance,
+    pub duration: Time,
+    pub total_distance: Distance,
     pub avg_heart_rate_bpm: Option<HeartRate>,
     pub max_heart_rate_bpm: Option<HeartRate>,
     pub avg_power_watts: Option<Power>,
     pub avg_stroke_rate: Option<StrokeRate>,
-    pub avg_pace_ms_per_500m: Option<Pace>,
+    pub avg_pace_per_500m: Option<Pace>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,7 +68,7 @@ pub struct PowerZoneStats {
     pub zone_name: String,
     pub avg_power_watts: Option<f64>,
     pub avg_heart_rate_bpm: Option<f64>,
-    pub time_in_zone_ms: u64,
+    pub time_in_zone: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -159,7 +102,7 @@ impl WorkoutDetails {
                 zone_name,
                 avg_power_watts: avg_power,
                 avg_heart_rate_bpm: avg_hr,
-                time_in_zone_ms: time_in_zone,
+                time_in_zone,
             });
         }
 
@@ -174,7 +117,6 @@ impl WorkoutDetails {
 pub struct WorkoutRecorder {
     workout_id: Uuid,
     start_time: UtcDateTime,
-    // Store separate DataFrames for each data source
     general_status_df: DataFrame,
     additional_status_df: DataFrame,
     stroke_data_df: DataFrame,
@@ -213,16 +155,25 @@ impl WorkoutRecorder {
             drag_factor,
         }: GeneralStatus,
     ) {
-        let timestamp = UtcDateTime::now().unix_timestamp_nanos();
+        let new_df = DataFrame::new(vec![
+            Column::new(columns::ELAPSED_TIME.into(), vec![elapsed_time.as_u32()]),
+            Column::new(columns::DISTANCE.into(), vec![distance.as_u32()]),
+            Column::new(columns::WORKOUT_TYPE.into(), vec![workout_type as u8]),
+            Column::new(columns::INTERVAL_TYPE.into(), vec![interval_type as u8]),
+            Column::new(columns::WORKOUT_STATE.into(), vec![workout_state as u8]),
+            Column::new(columns::ROWING_STATE.into(), vec![rowing_state as u8]),
+            Column::new(columns::STROKE_STATE.into(), vec![stroke_state as u8]),
+            Column::new(columns::TOTAL_WORK_DISTANCE.into(), vec![total_work_distance.0.as_u32()]),
+            Column::new(columns::WORKOUT_DURATION.into(), vec![workout_duration.0.as_u32()]),
+            Column::new(columns::WORKOUT_DURATION_TYPE.into(), vec![workout_duration_type as u8]),
+            Column::new(columns::DRAG_FACTOR.into(), vec![drag_factor.0]),
+        ])
+        .unwrap();
 
-        if let Ok(new_df) =
-            WorkoutSample::general_to_dataframe(&[(timestamp, elapsed_time, distance, drag_factor)])
-        {
-            if self.general_status_df.is_empty() {
-                self.general_status_df = new_df;
-            } else {
-                let _ = self.general_status_df.vstack_mut(&new_df);
-            }
+        if self.general_status_df.is_empty() {
+            self.general_status_df = new_df;
+        } else {
+            let _ = self.general_status_df.vstack_mut(&new_df);
         }
     }
 
@@ -237,23 +188,25 @@ impl WorkoutRecorder {
             average_pace,
             rest_distance,
             rest_time,
-            machine_type,
+            machine_type: _,
         }: AdditionalStatusOne,
     ) {
-        let timestamp = UtcDateTime::now().unix_timestamp_nanos();
+        let new_df = DataFrame::new(vec![
+            Column::new(columns::ELAPSED_TIME.into(), vec![elapsed_time.as_u32()]),
+            Column::new(columns::SPEED.into(), vec![speed.0]),
+            Column::new(columns::STROKE_RATE.into(), vec![stroke_rate.0]),
+            Column::new(columns::HEART_RATE.into(), vec![heart_rate.0]),
+            Column::new(columns::CURRENT_PACE.into(), vec![current_pace.0]),
+            Column::new(columns::AVERAGE_PACE.into(), vec![average_pace.0]),
+            Column::new(columns::REST_DISTANCE.into(), vec![rest_distance.0]),
+            Column::new(columns::REST_TIME.into(), vec![rest_time.as_u32()]),
+        ])
+        .unwrap();
 
-        if let Ok(new_df) = WorkoutSample::additional_to_dataframe(&[(
-            timestamp,
-            elapsed_time,
-            heart_rate,
-            stroke_rate,
-            current_pace,
-        )]) {
-            if self.additional_status_df.is_empty() {
-                self.additional_status_df = new_df;
-            } else {
-                let _ = self.additional_status_df.vstack_mut(&new_df);
-            }
+        if self.additional_status_df.is_empty() {
+            self.additional_status_df = new_df;
+        } else {
+            let _ = self.additional_status_df.vstack_mut(&new_df);
         }
     }
 
@@ -272,23 +225,24 @@ impl WorkoutRecorder {
             stroke_count,
         }: StrokeData,
     ) {
-        let timestamp = UtcDateTime::now().unix_timestamp_nanos();
+        let new_df = DataFrame::new(vec![
+            Column::new(columns::ELAPSED_TIME.into(), vec![elapsed_time.as_u32()]),
+            Column::new(columns::DISTANCE.into(), vec![distance.as_u32()]),
+            Column::new(columns::DRIVE_LENGTH.into(), vec![drive_length.0]),
+            Column::new(columns::DRIVE_TIME.into(), vec![drive_time.0]),
+            Column::new(columns::STROKE_RECOVERY.into(), vec![stroke_recovery.0]),
+            Column::new(columns::STROKE_DISTANCE.into(), vec![stroke_distance.0]),
+            Column::new(columns::PEAK_DRIVE_FORCE.into(), vec![peak_drive_force.0]),
+            Column::new(columns::AVG_DRIVE_FORCE.into(), vec![avg_drive_force.0]),
+            Column::new(columns::WORK_PER_STROKE.into(), vec![work_per_stroke.0]),
+            Column::new(columns::STROKE_COUNT.into(), vec![stroke_count.0]),
+        ])
+        .unwrap();
 
-        if let Ok(new_df) = WorkoutSample::stroke_to_dataframe(&[(
-            timestamp,
-            elapsed_time,
-            distance,
-            drive_length,
-            drive_time,
-            peak_drive_force,
-            avg_drive_force,
-            work_per_stroke,
-        )]) {
-            if self.stroke_data_df.is_empty() {
-                self.stroke_data_df = new_df;
-            } else {
-                let _ = self.stroke_data_df.vstack_mut(&new_df);
-            }
+        if self.stroke_data_df.is_empty() {
+            self.stroke_data_df = new_df;
+        } else {
+            let _ = self.stroke_data_df.vstack_mut(&new_df);
         }
     }
 
@@ -303,15 +257,13 @@ impl WorkoutRecorder {
             projected_work_distance,
         }: AdditionalStrokeData,
     ) {
-        let timestamp = UtcDateTime::now().unix_timestamp_nanos();
-
         let new_df = DataFrame::new(vec![
-            Column::new(columns::TIMESTAMP_STROKE.into(), vec![timestamp as i64]),
-            Column::new(
-                columns::ELAPSED_TIME_MS.into(),
-                vec![elapsed_time.0.as_u32()],
-            ),
-            Column::new(columns::POWER_WATTS.into(), vec![stroke_power.0 as u32]),
+            Column::new(columns::ELAPSED_TIME.into(), vec![elapsed_time.as_u32()]),
+            Column::new(columns::STROKE_POWER.into(), vec![stroke_power.0]),
+            Column::new(columns::STROKE_CALORIES.into(), vec![stroke_calories.0]),
+            Column::new(columns::STROKE_COUNT.into(), vec![stroke_count.0]),
+            Column::new(columns::PROJECTED_WORK_TIME.into(), vec![projected_work_time.as_u32()]),
+            Column::new(columns::PROJECTED_WORK_DISTANCE.into(), vec![projected_work_distance.as_u32()]),
         ])
         .unwrap();
 
@@ -322,13 +274,11 @@ impl WorkoutRecorder {
         }
     }
 
-    /// Get merged DataFrame joining all sources by elapsed_time_ms
     pub fn dataframe(&self) -> PolarsResult<DataFrame> {
         let lf = self.lazy();
         lf.collect()
     }
 
-    /// Get lazy representation with all data sources merged by elapsed_time_ms
     pub fn lazy(&self) -> LazyFrame {
         let general_lf = self.general_status_df.clone().lazy();
         let additional_lf = self.additional_status_df.clone().lazy();
@@ -342,8 +292,8 @@ impl WorkoutRecorder {
         if !self.additional_status_df.is_empty() {
             merged = merged.join(
                 additional_lf,
-                [col(columns::ELAPSED_TIME_MS)],
-                [col(columns::ELAPSED_TIME_MS)],
+                [col(columns::ELAPSED_TIME)],
+                [col(columns::ELAPSED_TIME)],
                 JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
             );
         }
@@ -352,8 +302,8 @@ impl WorkoutRecorder {
         if !self.stroke_data_df.is_empty() {
             merged = merged.join(
                 stroke_lf,
-                [col(columns::ELAPSED_TIME_MS)],
-                [col(columns::ELAPSED_TIME_MS)],
+                [col(columns::ELAPSED_TIME)],
+                [col(columns::ELAPSED_TIME)],
                 JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
             );
         }
@@ -362,18 +312,18 @@ impl WorkoutRecorder {
         if !self.additional_stroke_data_df.is_empty() {
             merged = merged.join(
                 additional_stroke_lf,
-                [col(columns::ELAPSED_TIME_MS)],
-                [col(columns::ELAPSED_TIME_MS)],
+                [col(columns::ELAPSED_TIME)],
+                [col(columns::ELAPSED_TIME)],
                 JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
             );
         }
 
         // Sort by elapsed_time and deduplicate
         merged
-            .sort([columns::ELAPSED_TIME_MS], Default::default())
+            .sort([columns::ELAPSED_TIME], Default::default())
             .unique(
                 Some(Selector::ByName {
-                    names: Arc::new([columns::ELAPSED_TIME_MS.into()]),
+                    names: Arc::new([columns::ELAPSED_TIME.into()]),
                     strict: false,
                 }),
                 UniqueKeepStrategy::Last,
@@ -476,13 +426,13 @@ impl Workout {
         tokio::task::block_in_place(|| {
             let agg_df = lf
                 .select([
-                    col(columns::HEART_RATE_BPM).mean().alias("avg_hr"),
-                    col(columns::HEART_RATE_BPM).max().alias("max_hr"),
-                    col(columns::POWER_WATTS).mean().alias("avg_power"),
+                    col(columns::HEART_RATE).mean().alias("avg_hr"),
+                    col(columns::HEART_RATE).max().alias("max_hr"),
+                    col(columns::STROKE_POWER).mean().alias("avg_power"),
                     col(columns::STROKE_RATE).mean().alias("avg_stroke_rate"),
-                    col(columns::ELAPSED_TIME_MS).max().alias("total_time"),
-                    col(columns::DISTANCE_M).max().alias("total_distance"),
-                    col(columns::PACE_MS_PER_500M).mean().alias("avg_pace"),
+                    col(columns::ELAPSED_TIME).max().alias("total_time"),
+                    col(columns::DISTANCE).max().alias("total_distance"),
+                    col(columns::CURRENT_PACE).mean().alias("avg_pace"),
                 ])
                 .collect()?;
 
@@ -509,13 +459,13 @@ impl Workout {
 
             Ok(WorkoutSummary {
                 workout_id: self.id,
-                duration_ms: total_time.unwrap_or_default(),
-                total_distance_m: total_distance.unwrap_or_default(),
+                duration: total_time.unwrap_or_default(),
+                total_distance: total_distance.unwrap_or_default(),
                 avg_heart_rate_bpm: avg_hr,
                 max_heart_rate_bpm: max_hr,
                 avg_power_watts: avg_power,
                 avg_stroke_rate,
-                avg_pace_ms_per_500m: avg_pace,
+                avg_pace_per_500m: avg_pace,
             })
         })
     }
@@ -528,17 +478,17 @@ impl Workout {
 
             let high_intensity = with_zones
                 .clone()
-                .filter(col(columns::POWER_WATTS).gt(lit(250)))
+                .filter(col(columns::STROKE_POWER).gt(lit(250)))
                 .collect()?;
 
             let high_intensity_count = high_intensity.height();
 
             let zone_summary = with_zones
-                .group_by([col(columns::POWER_ZONE)])
+                .group_by([columns::POWER_ZONE])
                 .agg([
-                    col(columns::POWER_WATTS).mean().alias("avg_power"),
-                    col(columns::HEART_RATE_BPM).mean().alias("avg_hr"),
-                    col(columns::DURATION_MS).sum().alias("time_in_zone_ms"),
+                    col(columns::STROKE_POWER).mean().alias("avg_power"),
+                    col(columns::HEART_RATE).mean().alias("avg_hr"),
+                    col(columns::DURATION).sum().alias("time_in_zone_ms"),
                 ])
                 .sort(
                     ["time_in_zone_ms"],
@@ -557,26 +507,26 @@ pub struct WorkoutAnalytics;
 impl WorkoutAnalytics {
     pub fn delta_time(lf: LazyFrame) -> LazyFrame {
         lf.with_column(
-            (col(columns::ELAPSED_TIME_MS) - col(columns::ELAPSED_TIME_MS).shift(lit(1)))
-                .alias(columns::DURATION_MS),
+            (col(columns::ELAPSED_TIME) - col(columns::ELAPSED_TIME).shift(lit(1)))
+                .alias(columns::DURATION),
         )
         .with_column(
-            when(col(columns::DURATION_MS).is_null())
+            when(col(columns::DURATION).is_null())
                 .then(lit(0))
-                .otherwise(col(columns::DURATION_MS))
-                .alias(columns::DURATION_MS),
+                .otherwise(col(columns::DURATION))
+                .alias(columns::DURATION),
         )
     }
 
     pub fn power_zones(lf: LazyFrame, profile: &Profile) -> LazyFrame {
         lf.with_column(
-            when(col(columns::POWER_WATTS).gt_eq(lit(profile.zones.z5.0)))
+            when(col(columns::STROKE_POWER).gt_eq(lit(profile.zones.z5.0)))
                 .then(lit("Zone 5: VO2 Max"))
-                .when(col(columns::POWER_WATTS).gt_eq(lit(profile.zones.z4.0)))
+                .when(col(columns::STROKE_POWER).gt_eq(lit(profile.zones.z4.0)))
                 .then(lit("Zone 4: Threshold"))
-                .when(col(columns::POWER_WATTS).gt_eq(lit(profile.zones.z3.0)))
+                .when(col(columns::STROKE_POWER).gt_eq(lit(profile.zones.z3.0)))
                 .then(lit("Zone 3: Tempo"))
-                .when(col(columns::POWER_WATTS).gt_eq(lit(profile.zones.z2.0)))
+                .when(col(columns::STROKE_POWER).gt_eq(lit(profile.zones.z2.0)))
                 .then(lit("Zone 2: Endurance"))
                 .otherwise(lit("Zone 1: Recovery"))
                 .alias(columns::POWER_ZONE),
@@ -607,5 +557,109 @@ impl Default for Profile {
                 z5: Power(140),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+
+
+    async fn record_workout_example(profile: &Profile) -> anyhow::Result<Workout> {
+        let mut recorder = WorkoutRecorder::new();
+
+        for i in 0..=3000 {
+            let elapsed = Time::from_secs(i as f32);
+            let distance = Distance(U24::new(i * 10));
+            let hr = 120 + (i % 20) as u8;
+            let stroke_rate = 45 + (i % 5) as u8;
+            let pace = Pace::from_secs(125.0); // Getting slightly slower
+
+            // if i % 3 == 0 {
+            recorder.add_stroke_data(StrokeData {
+                elapsed_time: elapsed,
+                distance: distance,
+                drive_length: DriveLength(5),
+                drive_time: DriveTime(2),
+                stroke_recovery: StrokeRecoveryTime(5),
+                stroke_distance: StrokeDistance(5),
+                peak_drive_force: Force(260),
+                avg_drive_force: Force(120),
+                work_per_stroke: Work(2),
+                stroke_count: StrokeCount(i as u16 / 3),
+            });
+
+            recorder.add_additional_stroke_data(AdditionalStrokeData {
+                elapsed_time: elapsed,
+                stroke_power: {
+                    if i % 3 == 0 {
+                        profile.zones.z5
+                    } else if i % 10 == 0 {
+                        profile.zones.z4
+                    } else {
+                        profile.zones.z2
+                    }
+                },
+                stroke_calories: Calories(20),
+                stroke_count: StrokeCount(80),
+                projected_work_time: Time(U24::new(10)),
+                projected_work_distance: Distance(U24::new(30)),
+            });
+            // }
+
+            recorder.add_general_status(GeneralStatus {
+                elapsed_time: elapsed,
+                distance: distance,
+                workout_type: WorkoutType::JustrowSplits,
+                interval_type: IntervalType::Time,
+                workout_state: WorkoutState::WorkoutRow,
+                rowing_state: RowingState::Active,
+                stroke_state: StrokeState::DrivingState,
+                total_work_distance: distance,
+                workout_duration: elapsed,
+                workout_duration_type: WorkoutDurationType::Time,
+                drag_factor: DragFactor(10),
+            });
+
+            recorder.add_additional_status_one(AdditionalStatusOne {
+                elapsed_time: elapsed,
+                speed: Speed(10),
+                stroke_rate: StrokeRate(stroke_rate),
+                heart_rate: HeartRate(hr),
+                current_pace: pace,
+                average_pace: pace,
+                rest_distance: RestDistance(100),
+                rest_time: Time(U24::new(40)),
+                machine_type: ErgMachineType::MultiergSki,
+            });
+        }
+
+        let storage = WorkoutStorage::new_mem("rowing-workouts").await?;
+        storage.save_workout("races", &recorder).await
+    }
+
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_summary() -> anyhow::Result<()> {
+        let storage = WorkoutStorage::new_disk("real-workouts").await?;
+        let workout = storage
+            .load_workout_lazy(
+                "races",
+                Uuid::from_str("019aca7f-33d9-7490-a550-d6d052c6283e")?,
+            )
+            .await?;
+        let summary = workout.generate_summary()?;
+        dbg!(summary.duration.as_secs());
+        dbg!(summary.total_distance.as_meters());
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_debug() -> anyhow::Result<()> {
+        let workout = record_workout_example(&Profile::default()).await?;
+        dbg!(workout.generate_summary()?);
+        Ok(())
     }
 }
