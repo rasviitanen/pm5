@@ -1,7 +1,6 @@
 use futures::TryStreamExt;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::sync::Arc;
 use time::UtcDateTime;
 use uuid::Uuid;
@@ -121,6 +120,7 @@ pub struct WorkoutRecorder {
     additional_status_df: DataFrame,
     stroke_data_df: DataFrame,
     additional_stroke_data_df: DataFrame,
+    env_forces_df: DataFrame,
 }
 
 impl WorkoutRecorder {
@@ -132,11 +132,34 @@ impl WorkoutRecorder {
             additional_status_df: Default::default(),
             stroke_data_df: Default::default(),
             additional_stroke_data_df: Default::default(),
+            env_forces_df: Default::default(),
         }
     }
 
     pub fn workout_id(&self) -> Uuid {
         self.workout_id
+    }
+
+    pub fn add_environmental_forces(
+        &mut self,
+        environment::Forces {
+            elapsed_time,
+            slope_percent,
+            wind_resistance,
+        }: environment::Forces,
+    ) {
+        let new_df = DataFrame::new(vec![
+            Column::new(columns::ELAPSED_TIME.into(), vec![elapsed_time.as_u32()]),
+            Column::new(environment::columns::SLOPE_PERCENT.into(), vec![slope_percent]),
+            Column::new(environment::columns::WIND_RESISTANCE.into(), vec![wind_resistance]),
+        ])
+        .unwrap();
+
+        if self.env_forces_df.is_empty() {
+            self.env_forces_df = new_df;
+        } else {
+            let _ = self.env_forces_df.vstack_mut(&new_df);
+        }
     }
 
     pub fn add_general_status(
@@ -315,6 +338,16 @@ impl WorkoutRecorder {
                 [col(columns::ELAPSED_TIME)],
                 [col(columns::ELAPSED_TIME)],
                 JoinArgs::new(JoinType::Full).with_coalesce(JoinCoalesce::CoalesceColumns),
+            );
+        }
+
+        if !self.env_forces_df.is_empty() {
+            let env_lf = self.env_forces_df.clone().lazy();
+            merged = merged.join(
+                env_lf,
+                [col(columns::ELAPSED_TIME)],
+                [col(columns::ELAPSED_TIME)],
+                JoinArgs::new(JoinType::Left).with_coalesce(JoinCoalesce::CoalesceColumns),
             );
         }
 
@@ -501,7 +534,6 @@ impl Workout {
     }
 }
 
-/// Analytics utilities using LazyFrame
 pub struct WorkoutAnalytics;
 
 impl WorkoutAnalytics {
@@ -560,6 +592,25 @@ impl Default for Profile {
     }
 }
 
+mod environment {
+    use super::*;
+
+    pub mod columns {
+        pub const SLOPE_PERCENT: &str = "slope_percent";
+        pub const WIND_RESISTANCE: &str = "wind_resistance";
+    }
+
+
+    /// Environmental forces data structure
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    pub struct Forces {
+        pub elapsed_time: Time,
+        pub slope_percent: f64,
+        pub wind_resistance: f64,
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -569,15 +620,13 @@ mod tests {
 
     async fn record_workout_example(profile: &Profile) -> anyhow::Result<Workout> {
         let mut recorder = WorkoutRecorder::new();
-
-        for i in 0..=3000 {
+        for i in 0..=3600 {
             let elapsed = Time::from_secs(i as f32);
-            let distance = Distance(U24::new(i * 10));
+            let distance = Distance::from_meters((4 * i) as _);
             let hr = 120 + (i % 20) as u8;
             let stroke_rate = 45 + (i % 5) as u8;
             let pace = Pace::from_secs(125.0); // Getting slightly slower
 
-            // if i % 3 == 0 {
             recorder.add_stroke_data(StrokeData {
                 elapsed_time: elapsed,
                 distance: distance,
@@ -589,6 +638,12 @@ mod tests {
                 avg_drive_force: Force(120),
                 work_per_stroke: Work(2),
                 stroke_count: StrokeCount(i as u16 / 3),
+            });
+
+            recorder.add_environmental_forces(environment::Forces {
+                elapsed_time: elapsed,
+                slope_percent: 2.0,
+                wind_resistance: 0.0
             });
 
             recorder.add_additional_stroke_data(AdditionalStrokeData {
@@ -607,7 +662,6 @@ mod tests {
                 projected_work_time: Time(U24::new(10)),
                 projected_work_distance: Distance(U24::new(30)),
             });
-            // }
 
             recorder.add_general_status(GeneralStatus {
                 elapsed_time: elapsed,
@@ -630,7 +684,7 @@ mod tests {
                 heart_rate: HeartRate(hr),
                 current_pace: pace,
                 average_pace: pace,
-                rest_distance: RestDistance(100),
+                rest_distance: RestDistance(0),
                 rest_time: Time(U24::new(40)),
                 machine_type: ErgMachineType::MultiergSki,
             });
@@ -657,9 +711,10 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn test_debug() -> anyhow::Result<()> {
-        let workout = record_workout_example(&Profile::default()).await?;
-        dbg!(workout.generate_summary()?);
+    async fn test_simple_summary() -> anyhow::Result<()> {
+        let workout = record_workout_example(&Default::default()).await?;
+        let summary = workout.generate_summary()?;
+        dbg!(summary);
         Ok(())
     }
 }
