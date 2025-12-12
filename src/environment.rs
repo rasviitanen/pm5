@@ -1,13 +1,12 @@
 use glam::Vec3;
 
-
 #[derive(Debug)]
 pub struct SkierParams {
     pub mass: f32,
     pub cd_area: f32,
     pub rho: f32,
-    pub mu_roll: f32,   // Coulomb friction coefficient
-    pub c_visc: f32,    // viscous ground damping
+    pub mu_roll: f32, // Coulomb friction coefficient
+    pub c_visc: f32,  // viscous ground damping
     pub v_min: f32,
     pub g: Vec3,
 }
@@ -25,20 +24,27 @@ impl Default for SkierParams {
             mu_roll: 0.03,
             c_visc: 5.0,
             v_min: 0.5,
-            g: Vec3 { x: 0.0, y: -9.81, z: 0.0 },
+            g: Vec3 {
+                x: 0.0,
+                y: -9.81,
+                z: 0.0,
+            },
         }
     }
 }
 
 #[derive(Debug)]
 pub struct SkierState {
-    pub t: f32, // global curve parameter (same t used by CubicCurve)
-    pub speed: f32 // scalar speed along curve (m/s)
+    pub t: f32,     // global curve parameter (same t used by CubicCurve)
+    pub speed: f32, // scalar speed along curve (m/s)
 }
 
 impl SkierState {
     pub fn new(t0: f32, speed0: f32) -> Self {
-        Self { t: t0, speed: speed0.max(0.0) }
+        Self {
+            t: t0,
+            speed: speed0.max(0.0),
+        }
     }
 
     pub fn update(
@@ -50,8 +56,8 @@ impl SkierState {
         dt: f32,
     ) {
         // Sample derivatives at current curve parameter t
-        let r1 = curve_velocity;      // dr/dt
-        let r2 = curve_acceleration;  // d2r/dt2
+        let r1 = curve_velocity; // dr/dt
+        let r2 = curve_acceleration; // d2r/dt2
 
         // Tangent, normal, curvature, and local |dr/dt| to convert between dt and arc-length
         let (tangent, normal, kappa, r1_norm) = compute_tangent_curvature(r1, r2);
@@ -103,13 +109,14 @@ impl SkierState {
 
 /// Compute curvature κ and unit tangent & normal from derivatives r' and r''.
 /// r' and r'' are derivatives with respect to curve parameter t (not arc-length).
-fn compute_tangent_curvature(
-    r1: Vec3,
-    r2: Vec3,
-) -> (Vec3, Vec3, f32, f32) {
+fn compute_tangent_curvature(r1: Vec3, r2: Vec3) -> (Vec3, Vec3, f32, f32) {
     let r1_norm = r1.length();
-    let tangent = if r1_norm > 1e-8 { r1 / r1_norm } else { Vec3::X }; // fallback
-    // curvature κ = |r' x r''| / |r'|^3
+    let tangent = if r1_norm > 1e-8 {
+        r1 / r1_norm
+    } else {
+        Vec3::X
+    }; // fallback
+       // curvature κ = |r' x r''| / |r'|^3
     let cross = r1.cross(r2);
     let kappa = cross.length() / (r1_norm * r1_norm * r1_norm + 1e-12);
     // normal direction (unit) approximately r'' projected perpendicular to tangent
@@ -123,7 +130,6 @@ fn compute_tangent_curvature(
     }
     (tangent, normal, kappa, r1_norm)
 }
-
 
 #[cfg(test)]
 mod tests {

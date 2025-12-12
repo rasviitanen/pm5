@@ -26,7 +26,7 @@ impl App {
         let manager = Manager::new().await?;
         let adapter_list = manager.adapters().await?;
         if adapter_list.is_empty() {
-            eprintln!("No Bluetooth adapters found");
+            bail!("No Bluetooth adapters found");
         }
 
         let mut peripherals = Vec::new();
@@ -167,5 +167,71 @@ impl App {
         }
 
         bail!("no peripheral found")
+    }
+
+    pub async fn connect_to<'a>(
+        &mut self,
+        peripheral: &'a Peripheral,
+    ) -> anyhow::Result<&'a Peripheral> {
+        // All peripheral devices in range.
+        let properties = peripheral.properties().await?;
+        let is_connected = peripheral.is_connected().await?;
+        let local_name = properties
+            .unwrap()
+            .local_name
+            .unwrap_or(String::from("(peripheral name unknown)"));
+        println!(
+            "Peripheral {:?} is connected: {:?}",
+            &local_name, is_connected
+        );
+        // Check if it's the peripheral we want.
+        if local_name.starts_with(PERIPHERAL_NAME_MATCH_PREFIX_FILTER) {
+            println!("Found matching peripheral {:?}...", &local_name);
+            if !is_connected {
+                // Connect if we aren't already connected.
+                if let Err(err) = peripheral.connect().await {
+                    eprintln!("Error connecting to peripheral, skipping: {}", err);
+                }
+            }
+            let is_connected = peripheral.is_connected().await?;
+            println!(
+                "Now connected ({:?}) to peripheral {:?}.",
+                is_connected, &local_name
+            );
+            if is_connected {
+                println!("Discover peripheral {:?} services...", local_name);
+                peripheral.discover_services().await?;
+                for service in peripheral.services() {
+                    if Rowing::UUID == service.uuid {
+                        print!("Found rowing service");
+                        for characteristic in service.characteristics {
+                            println!("Checking characteristic {:?}", characteristic);
+                            let supported = Pm5::rowing()
+                                .into_iter()
+                                .find(|c| c.id() == characteristic.uuid);
+                            if let Some(supported) = supported
+                            // .contains(&characteristic.uuid)
+                            // && characteristic
+                            //     .properties
+                            //     .contains(CharPropFlags::NOTIFY)
+                            {
+                                println!(
+                                    "Subscribing to characteristic {:?} ({})",
+                                    supported, characteristic.uuid
+                                );
+                                peripheral.subscribe(&characteristic).await?;
+                            } else {
+                                println!("Skipping {:?}", characteristic.uuid);
+                            }
+                        }
+                    }
+                }
+                return Ok(peripheral);
+            } else {
+                bail!("Failed to connect");
+            }
+        } else {
+            bail!("Skipping unknown peripheral {:#?}", peripheral);
+        }
     }
 }

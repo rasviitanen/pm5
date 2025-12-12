@@ -47,7 +47,6 @@ pub mod columns {
 
     pub const DURATION: &str = "duration";
     pub const POWER_ZONE: &str = "power_zone";
-
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
@@ -150,8 +149,14 @@ impl WorkoutRecorder {
     ) {
         let new_df = DataFrame::new(vec![
             Column::new(columns::ELAPSED_TIME.into(), vec![elapsed_time.as_u32()]),
-            Column::new(environment::columns::SLOPE_PERCENT.into(), vec![slope_percent]),
-            Column::new(environment::columns::WIND_RESISTANCE.into(), vec![wind_resistance]),
+            Column::new(
+                environment::columns::SLOPE_PERCENT.into(),
+                vec![slope_percent],
+            ),
+            Column::new(
+                environment::columns::WIND_RESISTANCE.into(),
+                vec![wind_resistance],
+            ),
         ])
         .unwrap();
 
@@ -186,9 +191,18 @@ impl WorkoutRecorder {
             Column::new(columns::WORKOUT_STATE.into(), vec![workout_state as u8]),
             Column::new(columns::ROWING_STATE.into(), vec![rowing_state as u8]),
             Column::new(columns::STROKE_STATE.into(), vec![stroke_state as u8]),
-            Column::new(columns::TOTAL_WORK_DISTANCE.into(), vec![total_work_distance.0.as_u32()]),
-            Column::new(columns::WORKOUT_DURATION.into(), vec![workout_duration.0.as_u32()]),
-            Column::new(columns::WORKOUT_DURATION_TYPE.into(), vec![workout_duration_type as u8]),
+            Column::new(
+                columns::TOTAL_WORK_DISTANCE.into(),
+                vec![total_work_distance.0.as_u32()],
+            ),
+            Column::new(
+                columns::WORKOUT_DURATION.into(),
+                vec![workout_duration.0.as_u32()],
+            ),
+            Column::new(
+                columns::WORKOUT_DURATION_TYPE.into(),
+                vec![workout_duration_type as u8],
+            ),
             Column::new(columns::DRAG_FACTOR.into(), vec![drag_factor.0]),
         ])
         .unwrap();
@@ -285,8 +299,14 @@ impl WorkoutRecorder {
             Column::new(columns::STROKE_POWER.into(), vec![stroke_power.0]),
             Column::new(columns::STROKE_CALORIES.into(), vec![stroke_calories.0]),
             Column::new(columns::STROKE_COUNT.into(), vec![stroke_count.0]),
-            Column::new(columns::PROJECTED_WORK_TIME.into(), vec![projected_work_time.as_u32()]),
-            Column::new(columns::PROJECTED_WORK_DISTANCE.into(), vec![projected_work_distance.as_u32()]),
+            Column::new(
+                columns::PROJECTED_WORK_TIME.into(),
+                vec![projected_work_time.as_u32()],
+            ),
+            Column::new(
+                columns::PROJECTED_WORK_DISTANCE.into(),
+                vec![projected_work_distance.as_u32()],
+            ),
         ])
         .unwrap();
 
@@ -600,7 +620,6 @@ mod environment {
         pub const WIND_RESISTANCE: &str = "wind_resistance";
     }
 
-
     /// Environmental forces data structure
     #[derive(Debug, Clone, Serialize, Deserialize)]
     pub struct Forces {
@@ -610,13 +629,11 @@ mod environment {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
 
     use super::*;
-
 
     async fn record_workout_example(profile: &Profile) -> anyhow::Result<Workout> {
         let mut recorder = WorkoutRecorder::new();
@@ -643,7 +660,7 @@ mod tests {
             recorder.add_environmental_forces(environment::Forces {
                 elapsed_time: elapsed,
                 slope_percent: 2.0,
-                wind_resistance: 0.0
+                wind_resistance: 0.0,
             });
 
             recorder.add_additional_stroke_data(AdditionalStrokeData {
@@ -693,7 +710,6 @@ mod tests {
         let storage = WorkoutStorage::new_mem("rowing-workouts").await?;
         storage.save_workout("races", &recorder).await
     }
-
 
     #[tokio::test(flavor = "multi_thread")]
     async fn test_summary() -> anyhow::Result<()> {

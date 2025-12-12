@@ -176,7 +176,7 @@ impl Time {
     }
 
     pub fn as_hours_mins_secs(self) -> (u32, u32, u32) {
-        let total_secs = self.0.0 / 100;
+        let total_secs = self.0 .0 / 100;
         let hours = total_secs / 3600;
         let minutes = (total_secs % 3600) / 60;
         let secs = total_secs % 60;
@@ -225,7 +225,7 @@ impl Distance {
     }
 
     pub fn as_km_and_meters(self) -> (u32, u32) {
-        (self.0.0 / 10000, (self.0.0 / 10) % 1000)
+        (self.0 .0 / 10000, (self.0 .0 / 10) % 1000)
     }
 
     pub fn to_le_bytes(self) -> [u8; 4] {
