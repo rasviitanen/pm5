@@ -52,11 +52,13 @@ mod privat {
 
     macro_rules! impl_parse_struct_type {
         ( $( $x:path ),* $(,)? ) => {
-            $(impl crate::parse::Parse for $x {
-                fn parse(cursor: &mut std::io::Cursor<Vec<u8>>) -> Result<Self, crate::parse::ParseError> {
-                Ok(Self(crate::parse::Parse::parse(cursor)?))
+            $(
+                impl crate::parse::Parse for $x {
+                    fn parse(cursor: &mut std::io::Cursor<Vec<u8>>) -> Result<Self, crate::parse::ParseError> {
+                    Ok(Self(crate::parse::Parse::parse(cursor)?))
+                    }
                 }
-            })*
+            )*
         };
     }
 
@@ -301,6 +303,12 @@ impl std::fmt::Display for Pace {
 pub struct Speed(pub u16);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct StrokeRate(pub u8);
+
+impl std::fmt::Display for StrokeRate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 #[derive(Default, Serialize, Deserialize, Clone, Copy)]
 pub struct HeartRate(pub u8);
 
@@ -326,6 +334,12 @@ pub struct DragFactor(pub u8);
 pub struct IntervalCount(pub u8);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct Power(pub u16);
+
+impl std::fmt::Display for Power {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct DriveLength(pub u8);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]

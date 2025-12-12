@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 use time::UtcDateTime;
 use uuid::Uuid;
 
@@ -64,9 +64,9 @@ pub struct WorkoutSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PowerZoneStats {
     pub zone_name: String,
-    pub avg_power_watts: Option<f64>,
-    pub avg_heart_rate_bpm: Option<f64>,
-    pub time_in_zone: u64,
+    pub avg_power_watts: Option<Power>,
+    pub avg_heart_rate_bpm: Option<HeartRate>,
+    pub time_in_zone: Time,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -94,16 +94,17 @@ impl WorkoutDetails {
 
             let avg_power = row[1].try_extract::<f64>().ok();
             let avg_hr = row[2].try_extract::<f64>().ok();
-            let time_in_zone = row[3].try_extract::<f64>().unwrap_or(0.0) as u64;
+            let time_in_zone = row[3].try_extract::<f64>().unwrap_or(0.0) as u32;
 
             distribution.push(PowerZoneStats {
                 zone_name,
-                avg_power_watts: avg_power,
-                avg_heart_rate_bpm: avg_hr,
-                time_in_zone,
+                avg_power_watts: avg_power.map(|v| Power(v as u16)),
+                avg_heart_rate_bpm: avg_hr.map(|v| HeartRate(v as u8)),
+                time_in_zone: Time::new(time_in_zone),
             });
         }
 
+        distribution.sort_by_key(|v| v.zone_name.clone());
         Ok(WorkoutDetails {
             high_intensity_sample_count: high_intensity_count,
             power_zone_distribution: distribution,
@@ -453,14 +454,14 @@ impl WorkoutStorage {
         Ok(Workout { id: workout_id, df })
     }
 
-    pub async fn scan_workouts(&self, namespace: &str) -> anyhow::Result<Vec<String>> {
+    pub async fn scan_workouts(&self, namespace: &str) -> anyhow::Result<Vec<Uuid>> {
         let prefix = format!("workouts/{}/", namespace);
         let mut paths = Vec::new();
 
         let mut lister = self.operator.lister(&prefix).await?;
         while let Some(entry) = lister.try_next().await? {
-            if entry.path().ends_with(".parquet") {
-                paths.push(entry.path().to_owned());
+            if let Some(id) = entry.name().strip_suffix(".parquet") {
+                paths.push(Uuid::from_str(id)?);
             }
         }
 

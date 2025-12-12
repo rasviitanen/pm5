@@ -10,4 +10,5 @@ pub mod workout;
 
 pub use btleplug::api as bluetooth_api;
 pub use btleplug::platform::Peripheral;
+pub use polars;
 pub use services::{Pm5Data, ServiceDataError};
