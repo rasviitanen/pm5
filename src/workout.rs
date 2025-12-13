@@ -475,6 +475,25 @@ pub struct Workout {
 }
 
 impl Workout {
+    pub fn power(&self) -> PolarsResult<Vec<(Time, Power)>> {
+        let df = self
+            .df
+            .clone()
+            .lazy()
+            .select([col(columns::ELAPSED_TIME), col(columns::STROKE_POWER)])
+            .collect()?;
+
+        // Assuming ELAPSED_TIME is i64 milliseconds and STROKE_POWER is f64 watts
+        let times = df.column(columns::ELAPSED_TIME)?.u32()?;
+        let powers = df.column(columns::STROKE_POWER)?.u16()?;
+
+        Ok(times
+            .into_iter()
+            .zip(powers.into_iter())
+            .filter_map(|(t, p)| Some((Time::new(t?), Power(p?))))
+            .collect())
+    }
+
     pub fn generate_summary(&self) -> PolarsResult<WorkoutSummary> {
         let lf = self.df.clone().lazy();
         tokio::task::block_in_place(|| {
