@@ -75,6 +75,26 @@ pub enum Rowing {
     MultiplexedInformation,
 }
 
+
+#[derive(Debug)]
+pub struct GeneralStatusRate {
+    pub interval: SampleRate,
+}
+
+#[derive(Debug)]
+pub struct AdditionalStatusTwo {
+    pub elapsed_time: Time,
+    pub interval_count: IntervalCount,
+    pub average_power: Power,
+    pub total_calories: Calories,
+    pub split_interval_avg_pace: Pace,
+    pub split_interval_avg_power: Power,
+    pub split_interval_avg_calories: Calories,
+    pub last_split_time: Time,
+    pub last_split_distance: Distance,
+}
+
+
 #[derive(Debug)]
 pub struct GeneralStatus {
     pub elapsed_time: Time,
@@ -103,25 +123,7 @@ pub struct AdditionalStatusOne {
     pub machine_type: ErgMachineType,
 }
 
-#[derive(Debug)]
-pub struct AdditionalStatusTwo {
-    pub elapsed_time: Time,
-    pub interval_count: IntervalCount,
-    pub average_power: Power,
-    pub total_calories: Calories,
-    pub split_interval_avg_pace: Pace,
-    pub split_interval_avg_power: Power,
-    pub split_interval_avg_calories: Calories,
-    pub last_split_time: Time,
-    pub last_split_distance: Distance,
-}
-
-#[derive(Debug)]
-pub struct GeneralStatusRate {
-    pub interval: SampleRate,
-}
-
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StrokeData {
     pub elapsed_time: Time,
     pub distance: Distance,

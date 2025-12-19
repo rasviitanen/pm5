@@ -120,7 +120,6 @@ pub struct WorkoutRecorder {
     additional_status_df: DataFrame,
     stroke_data_df: DataFrame,
     additional_stroke_data_df: DataFrame,
-    env_forces_df: DataFrame,
 }
 
 impl WorkoutRecorder {
@@ -132,40 +131,11 @@ impl WorkoutRecorder {
             additional_status_df: Default::default(),
             stroke_data_df: Default::default(),
             additional_stroke_data_df: Default::default(),
-            env_forces_df: Default::default(),
         }
     }
 
     pub fn workout_id(&self) -> Uuid {
         self.workout_id
-    }
-
-    pub fn add_environmental_forces(
-        &mut self,
-        environment::Forces {
-            elapsed_time,
-            slope_percent,
-            wind_resistance,
-        }: environment::Forces,
-    ) {
-        let new_df = DataFrame::new(vec![
-            Column::new(columns::ELAPSED_TIME.into(), vec![elapsed_time.as_u32()]),
-            Column::new(
-                environment::columns::SLOPE_PERCENT.into(),
-                vec![slope_percent],
-            ),
-            Column::new(
-                environment::columns::WIND_RESISTANCE.into(),
-                vec![wind_resistance],
-            ),
-        ])
-        .unwrap();
-
-        if self.env_forces_df.is_empty() {
-            self.env_forces_df = new_df;
-        } else {
-            let _ = self.env_forces_df.vstack_mut(&new_df);
-        }
     }
 
     pub fn add_general_status(
@@ -362,16 +332,6 @@ impl WorkoutRecorder {
             );
         }
 
-        if !self.env_forces_df.is_empty() {
-            let env_lf = self.env_forces_df.clone().lazy();
-            merged = merged.join(
-                env_lf,
-                [col(columns::ELAPSED_TIME)],
-                [col(columns::ELAPSED_TIME)],
-                JoinArgs::new(JoinType::Left).with_coalesce(JoinCoalesce::CoalesceColumns),
-            );
-        }
-
         // Sort by elapsed_time and deduplicate
         merged
             .sort([columns::ELAPSED_TIME], Default::default())
@@ -470,7 +430,7 @@ impl WorkoutStorage {
 }
 
 pub struct Workout {
-    id: Uuid,
+    pub id: Uuid,
     df: DataFrame,
 }
 
@@ -491,6 +451,121 @@ impl Workout {
             .into_iter()
             .zip(powers.into_iter())
             .filter_map(|(t, p)| Some((Time::new(t?), Power(p?))))
+            .collect())
+    }
+
+    pub fn heart_rate(&self) -> PolarsResult<Vec<(Time, HeartRate)>> {
+        let df = self
+            .df
+            .clone()
+            .lazy()
+            .select([col(columns::ELAPSED_TIME), col(columns::HEART_RATE)])
+            .collect()?;
+
+        // Assuming ELAPSED_TIME is i64 milliseconds and STROKE_POWER is f64 watts
+        let times = df.column(columns::ELAPSED_TIME)?.u32()?;
+        let powers = df.column(columns::HEART_RATE)?.u8()?;
+
+        Ok(times
+            .into_iter()
+            .zip(powers.into_iter())
+            .filter_map(|(t, p)| Some((Time::new(t?), HeartRate(p?))))
+            .collect())
+    }
+
+    pub fn stroke_data(&self) -> PolarsResult<std::collections::VecDeque<StrokeData>> {
+        use std::collections::VecDeque;
+
+        let df = self
+            .df
+            .clone()
+            .lazy()
+            .select([
+                col(columns::ELAPSED_TIME),
+                col(columns::DISTANCE),
+                col(columns::DRIVE_LENGTH),
+                col(columns::DRIVE_TIME),
+                col(columns::STROKE_RECOVERY),
+                col(columns::STROKE_DISTANCE),
+                col(columns::PEAK_DRIVE_FORCE),
+                col(columns::AVG_DRIVE_FORCE),
+                col(columns::WORK_PER_STROKE),
+                col(columns::STROKE_COUNT),
+            ])
+            .sort([columns::ELAPSED_TIME], Default::default())
+            .collect()?;
+
+        let elapsed_times = df.column(columns::ELAPSED_TIME)?.u32()?;
+        let distances = df.column(columns::DISTANCE)?.u32()?;
+        let drive_lengths = df.column(columns::DRIVE_LENGTH)?.u8()?;
+        let drive_times = df.column(columns::DRIVE_TIME)?.u8()?;
+        let stroke_recoveries = df.column(columns::STROKE_RECOVERY)?.u16()?;
+        let stroke_distances = df.column(columns::STROKE_DISTANCE)?.u16()?;
+        let peak_drive_forces = df.column(columns::PEAK_DRIVE_FORCE)?.u16()?;
+        let avg_drive_forces = df.column(columns::AVG_DRIVE_FORCE)?.u16()?;
+        let work_per_strokes = df.column(columns::WORK_PER_STROKE)?.u16()?;
+        let stroke_counts = df.column(columns::STROKE_COUNT)?.u16()?;
+
+        let mut replay_queue = VecDeque::new();
+
+        for i in 0..df.height() {
+            if let (
+                Some(elapsed_time),
+                Some(distance),
+                Some(drive_length),
+                Some(drive_time),
+                Some(stroke_recovery),
+                Some(stroke_distance),
+                Some(peak_drive_force),
+                Some(avg_drive_force),
+                Some(work_per_stroke),
+                Some(stroke_count),
+            ) = (
+                elapsed_times.get(i),
+                distances.get(i),
+                drive_lengths.get(i),
+                drive_times.get(i),
+                stroke_recoveries.get(i),
+                stroke_distances.get(i),
+                peak_drive_forces.get(i),
+                avg_drive_forces.get(i),
+                work_per_strokes.get(i),
+                stroke_counts.get(i),
+            ) {
+                replay_queue.push_back(StrokeData {
+                    elapsed_time: Time::new(elapsed_time),
+                    distance: Distance::new(distance),
+                    drive_length: DriveLength(drive_length),
+                    drive_time: DriveTime(drive_time),
+                    stroke_recovery: StrokeRecoveryTime(stroke_recovery),
+                    stroke_distance: StrokeDistance(stroke_distance),
+                    peak_drive_force: Force(peak_drive_force),
+                    avg_drive_force: Force(avg_drive_force),
+                    work_per_stroke: Work(work_per_stroke),
+                    stroke_count: StrokeCount(stroke_count),
+                });
+            }
+        }
+
+        Ok(replay_queue)
+    }
+
+    pub fn stroke_rate(&self) -> PolarsResult<Vec<(Time, StrokeRate)>> {
+        let df = self
+            .df
+            .clone()
+            .lazy()
+            .select([col(columns::ELAPSED_TIME), col(columns::STROKE_RATE)])
+            .collect()?;
+
+        // Assuming ELAPSED_TIME is i64 milliseconds and STROKE_POWER is f64 watts
+        let times = df.column(columns::ELAPSED_TIME)?.u32()?;
+        let powers = df.column(columns::STROKE_RATE)?.u8()?;
+
+        Ok(times
+            .into_iter()
+            .zip(powers.into_iter())
+            .filter_map(|(t, p)| Some((Time::new(t?), StrokeRate(p?))))
             .collect())
     }
 
@@ -632,23 +707,6 @@ impl Default for Profile {
     }
 }
 
-mod environment {
-    use super::*;
-
-    pub mod columns {
-        pub const SLOPE_PERCENT: &str = "slope_percent";
-        pub const WIND_RESISTANCE: &str = "wind_resistance";
-    }
-
-    /// Environmental forces data structure
-    #[derive(Debug, Clone, Serialize, Deserialize)]
-    pub struct Forces {
-        pub elapsed_time: Time,
-        pub slope_percent: f64,
-        pub wind_resistance: f64,
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
@@ -675,12 +733,6 @@ mod tests {
                 avg_drive_force: Force(120),
                 work_per_stroke: Work(2),
                 stroke_count: StrokeCount(i as u16 / 3),
-            });
-
-            recorder.add_environmental_forces(environment::Forces {
-                elapsed_time: elapsed,
-                slope_percent: 2.0,
-                wind_resistance: 0.0,
             });
 
             recorder.add_additional_stroke_data(AdditionalStrokeData {

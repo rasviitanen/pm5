@@ -1,5 +1,6 @@
 use crate::csafe::WorkoutCommand;
 use crate::services::{Control, Service};
+use crate::workout::Workout;
 use anyhow::bail;
 use btleplug::api::{Central, Characteristic, Manager as _, Peripheral as _, ScanFilter};
 use btleplug::platform::{Manager, Peripheral};
