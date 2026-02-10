@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use num_enum::TryFromPrimitive;
 use serde::{Deserialize, Serialize};
 
@@ -159,6 +157,20 @@ impl std::ops::DerefMut for U24 {
 // u24, little-endian
 #[derive(Default, Serialize, Deserialize, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Time(pub U24);
+
+impl std::ops::Add for Time {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Time::from_secs(self.as_secs() + rhs.as_secs())
+    }
+}
+
+impl std::ops::AddAssign for Time {
+    fn add_assign(&mut self, rhs: Self) {
+        *self = Time::from_secs(self.as_secs() + rhs.as_secs());
+    }
+}
 
 impl Time {
     pub fn new(v: u32) -> Self {

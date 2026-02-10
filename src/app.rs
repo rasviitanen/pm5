@@ -1,15 +1,13 @@
-use crate::csafe::WorkoutCommand;
 use crate::services::{Control, Service};
-use crate::workout::Workout;
 use anyhow::bail;
-use btleplug::api::{Central, Characteristic, Manager as _, Peripheral as _, ScanFilter};
+use btleplug::api::{Central, Manager as _, Peripheral as _, ScanFilter};
 use btleplug::platform::{Manager, Peripheral};
 use futures::stream::StreamExt;
 use std::time::Duration;
 use tokio::sync::mpsc;
 use tokio::time;
 
-use crate::services::{Pm5, Pm5Data, Rowing, RowingData, ServiceData, ServiceDataError};
+use crate::services::{Pm5, Pm5Data, Rowing, ServiceData, ServiceDataError};
 
 const PERIPHERAL_NAME_MATCH_PREFIX_FILTER: &str = "PM5";
 

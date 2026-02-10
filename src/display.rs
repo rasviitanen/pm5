@@ -1,10 +1,4 @@
-use anyhow::{Context, Result};
-
-use crate::{
-    csafe::CSafeBuffer,
-    csafe_defs::{PmLongPullDataCmds, PmLongPushCfgCmds, PmLongPushDataCmds},
-    types::{ScreenType, ScreenValueCsafe},
-};
+use crate::{csafe::CSafeBuffer, csafe_defs::PmLongPushDataCmds};
 
 // PM5 Display Constants (Correct resolution)
 const SCREEN_WIDTH: usize = 240;
@@ -36,24 +30,6 @@ impl Pm5Bitmap {
             self.data[byte_index] |= 1 << bit_offset;
         } else {
             self.data[byte_index] &= !(1 << bit_offset);
-        }
-    }
-    /// Draw text using a simple 5x7 font
-    pub fn draw_text(&mut self, x: usize, y: usize, text: &str) {
-        for (i, ch) in text.chars().enumerate() {
-            let char_x = x + i * 6; // 5 pixels + 1 space
-            self.draw_char(char_x, y, ch);
-        }
-    }
-
-    /// Draw a single character (simplified 5x7 font)
-    fn draw_char(&mut self, x: usize, y: usize, ch: char) {
-        // Simple block character for demo
-        // You'd want a proper font lookup table here
-        for dy in 0..7 {
-            for dx in 0..5 {
-                self.set_pixel(x + dx, y + dy, true);
-            }
         }
     }
 
@@ -105,7 +81,7 @@ impl Pm5Bitmap {
 
     /// Helper function to send bitmap and activate display
     pub fn display_bitmap(self) -> Vec<Vec<u8>> {
-        let mut packets = self.to_csafe_packets();
+        let packets = self.to_csafe_packets();
         // packets.push(
         //     CSafeBuffer::new()
         //         .append(

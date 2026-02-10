@@ -2,7 +2,6 @@ use futures::TryStreamExt;
 use polars::prelude::*;
 use serde::{Deserialize, Serialize};
 use std::{str::FromStr, sync::Arc};
-use time::UtcDateTime;
 use uuid::Uuid;
 
 use crate::{
@@ -115,7 +114,6 @@ impl WorkoutDetails {
 #[derive(Clone)]
 pub struct WorkoutRecorder {
     workout_id: Uuid,
-    start_time: UtcDateTime,
     general_status_df: DataFrame,
     additional_status_df: DataFrame,
     stroke_data_df: DataFrame,
@@ -126,12 +124,18 @@ impl WorkoutRecorder {
     pub fn new() -> Self {
         Self {
             workout_id: Uuid::now_v7(),
-            start_time: UtcDateTime::now(),
             general_status_df: Default::default(),
             additional_status_df: Default::default(),
             stroke_data_df: Default::default(),
             additional_stroke_data_df: Default::default(),
         }
+    }
+
+    pub fn as_workout(&self) -> PolarsResult<Workout> {
+        Ok(Workout {
+            id: self.workout_id,
+            df: self.dataframe()?,
+        })
     }
 
     pub fn workout_id(&self) -> Uuid {
@@ -373,7 +377,7 @@ impl WorkoutStorage {
         Ok(Self { operator })
     }
 
-    pub async fn new_mem(root: &str) -> anyhow::Result<Self> {
+    pub fn new_mem(root: &str) -> anyhow::Result<Self> {
         let builder = opendal::services::Memory::default().root(&format!("./{root}"));
         let operator = opendal::Operator::new(builder)?.finish();
         Ok(Self { operator })

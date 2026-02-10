@@ -75,7 +75,6 @@ pub enum Rowing {
     MultiplexedInformation,
 }
 
-
 #[derive(Debug)]
 pub struct GeneralStatusRate {
     pub interval: SampleRate,
@@ -93,7 +92,6 @@ pub struct AdditionalStatusTwo {
     pub last_split_time: Time,
     pub last_split_distance: Distance,
 }
-
 
 #[derive(Debug)]
 pub struct GeneralStatus {
@@ -391,7 +389,7 @@ impl ControlData {
 impl ServiceData for Control {
     type Data = ControlData;
 
-    fn parse(uuid: Uuid, data: Vec<u8>) -> Result<Self::Data, ServiceDataError> {
+    fn parse(_uuid: Uuid, data: Vec<u8>) -> Result<Self::Data, ServiceDataError> {
         Ok(ControlData {
             response: CsafeResponse::parse(&data).map_err(|_| ServiceDataError::InvalidCsafe)?,
         })

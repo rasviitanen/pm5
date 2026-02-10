@@ -5,17 +5,21 @@ edition = "2021"
 
 [dependencies]
 futures = "0.3"
-tokio =  { version = "1.41", features = ["full"] }
+tokio =  { version = "1.41", optional = true, features = ["full"] }
 uuid = { version = "1.18.0", features = ["v7"]}
-opendal = { version = "0.53", features = ["services-fs"] }
+opendal = { version = "0.53", optional = true, features = ["services-fs"] }
 anyhow = "1.0"
 byteorder = "1.5"
 thiserror = "2.0"
 num_enum = "0.7"
-polars = { version = "0.52.0", features = ["abs", "dtype-u8", "dtype-u16", "lazy", "rolling_window_by", "rolling_window", "strings", "concat_str", "timezones", "parquet", "cloud", "cum_agg"] }
+polars = { version = "0.52.0", optional = true, features = ["abs", "dtype-u8", "dtype-u16", "lazy", "rolling_window_by", "rolling_window", "strings", "concat_str", "timezones", "parquet", "cloud", "cum_agg"] }
 serde = { version = "1.0", features = ["derive"] }
 time = { version = "0.3", features = ["serde"] }
 serde_json = "1.0.145"
-btleplug = "0.11.8"
-tracing = "0.1.41"
-glam = "0.30.9"
+btleplug = { version = "0.11.8", optional = true }
+tracing = { version = "0.1.41", optional = true }
+
+[features]
+default = []
+app = ["dep:tokio", "dep:btleplug", "dep:tracing"]
+analytics = ["dep:polars", "dep:opendal", "dep:tokio"]
