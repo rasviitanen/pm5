@@ -58,6 +58,8 @@ pub struct WorkoutSummary {
     pub avg_power_watts: Option<Power>,
     pub avg_stroke_rate: Option<StrokeRate>,
     pub avg_pace_per_500m: Option<Pace>,
+    pub stroke_calories: Option<Calories>,
+    pub avg_drag_factor: Option<DragFactor>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -585,6 +587,8 @@ impl Workout {
                     col(columns::ELAPSED_TIME).max().alias("total_time"),
                     col(columns::DISTANCE).max().alias("total_distance"),
                     col(columns::CURRENT_PACE).mean().alias("avg_pace"),
+                    col(columns::STROKE_CALORIES).sum().alias("stroke_calories"),
+                    col(columns::DRAG_FACTOR).mean().alias("avg_drag_factor"),
                 ])
                 .collect()?;
 
@@ -608,6 +612,8 @@ impl Workout {
                 .ok()
                 .map(|v| Distance(U24::new(v as _)));
             let avg_pace = row[6].try_extract::<f64>().ok().map(|v| Pace(v as _));
+            let stroke_calories = row[7].try_extract::<f64>().ok().map(|v| Calories(v as _));
+            let avg_drag_factor = row[8].try_extract::<f64>().ok().map(|v| DragFactor(v as _));
 
             Ok(WorkoutSummary {
                 workout_id: self.id,
@@ -618,6 +624,8 @@ impl Workout {
                 avg_power_watts: avg_power,
                 avg_stroke_rate,
                 avg_pace_per_500m: avg_pace,
+                stroke_calories,
+                avg_drag_factor,
             })
         })
     }
