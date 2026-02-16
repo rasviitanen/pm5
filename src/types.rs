@@ -296,6 +296,16 @@ impl Pace {
         let secs = total_secs % 60;
         (minutes, secs)
     }
+
+    pub fn as_watts(&self) -> f32 {
+        if self.0 == 0 {
+            return 0.0;
+        }
+
+        let pace_s_per_500m = (self.0 as f32) / 100.0;
+        let pace_s_per_m = pace_s_per_500m / 500.0;
+        2.8 / (pace_s_per_m * pace_s_per_m * pace_s_per_m)
+    }
 }
 
 impl std::fmt::Debug for Pace {
