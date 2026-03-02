@@ -75,12 +75,12 @@ pub enum Rowing {
     MultiplexedInformation,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct GeneralStatusRate {
     pub interval: SampleRate,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct AdditionalStatusTwo {
     pub elapsed_time: Time,
     pub interval_count: IntervalCount,
@@ -93,7 +93,7 @@ pub struct AdditionalStatusTwo {
     pub last_split_distance: Distance,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct GeneralStatus {
     pub elapsed_time: Time,
     pub distance: Distance,
@@ -108,7 +108,7 @@ pub struct GeneralStatus {
     pub drag_factor: DragFactor,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct AdditionalStatusOne {
     pub elapsed_time: Time,
     pub speed: Speed,
@@ -121,7 +121,7 @@ pub struct AdditionalStatusOne {
     pub machine_type: ErgMachineType,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct StrokeData {
     pub elapsed_time: Time,
     pub distance: Distance,
@@ -135,7 +135,7 @@ pub struct StrokeData {
     pub stroke_count: StrokeCount,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct AdditionalStrokeData {
     pub elapsed_time: Time,
     pub stroke_power: Power,
@@ -145,7 +145,7 @@ pub struct AdditionalStrokeData {
     pub projected_work_distance: Distance,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct SplitIntervalData {
     pub elapsed_time: Time,
     pub distance: Distance,
@@ -157,7 +157,7 @@ pub struct SplitIntervalData {
     pub split_interval_number: IntervalCount,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct AdditionalSplitIntervalData {
     pub elapsed_time: Time,
     pub split_interval_avg_stroke_rate: StrokeRate,
@@ -173,7 +173,7 @@ pub struct AdditionalSplitIntervalData {
     pub erg_machine_type: ErgMachineType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct EndOfWorkoutSummaryData {
     pub log_entry_date: LogEntryDate,
     pub log_entry_time: LogEntryTime,
@@ -190,7 +190,7 @@ pub struct EndOfWorkoutSummaryData {
     pub avg_pace: Pace,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct AdditionalEndOfWorkoutSummaryData {
     pub log_entry_date: LogEntryDate,
     pub log_entry_time: LogEntryTime,
@@ -204,14 +204,14 @@ pub struct AdditionalEndOfWorkoutSummaryData {
     pub avg_calories: Calories,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct HeartRateBeltInformation {
     pub manufacturer_id: u8,
     pub device_type: u8,
     pub belt_id: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct AdditionalEndOfWorkoutSummaryDataTwo {
     pub log_entry_date: LogEntryDate,
     pub log_entry_time: LogEntryTime,
@@ -221,17 +221,17 @@ pub struct AdditionalEndOfWorkoutSummaryDataTwo {
     pub erg_machine_type: ErgMachineType,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct ForceCurveData {
     pub data: crate::types::ForceCurveData,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct AdditionalStatusThree {}
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct MultiplexedInformation {}
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RowingData {
     GeneralStatus(GeneralStatus),
     AdditionalStatusOne(AdditionalStatusOne),
@@ -336,6 +336,36 @@ impl ServiceData for Rowing {
                 stroke_count: Parse::parse(&mut data)?,
                 projected_work_time: Parse::parse(&mut data)?,
                 projected_work_distance: Parse::parse(&mut data)?,
+            }));
+        }
+
+        if Rowing::SplitIntervalData.id() == uuid {
+            return Ok(RowingData::SplitIntervalData(SplitIntervalData {
+                elapsed_time: Parse::parse(&mut data)?,
+                distance: Parse::parse(&mut data)?,
+                split_interval_time: Parse::parse(&mut data)?,
+                split_interval_distance: Parse::parse(&mut data)?,
+                interval_rest_time: Parse::parse(&mut data)?,
+                interval_rest_distance: Parse::parse(&mut data)?,
+                split_interval_type: Parse::parse(&mut data)?,
+                split_interval_number: Parse::parse(&mut data)? 
+            }));
+        }
+
+        if Rowing::AdditionalSplitIntervalData.id() == uuid {
+            return Ok(RowingData::AdditionalSplitIntervalData(AdditionalSplitIntervalData {
+                elapsed_time: Parse::parse(&mut data)?,
+                split_interval_avg_stroke_rate: Parse::parse(&mut data)?,
+                split_interval_work_heartrate: Parse::parse(&mut data)?,
+                split_interval_rest_heartrate: Parse::parse(&mut data)?,
+                split_interval_avg_pace: Parse::parse(&mut data)?,
+                split_interval_total_calories: Parse::parse(&mut data)?,
+                split_interval_avg_calories: Parse::parse(&mut data)?,
+                split_interval_speed: Parse::parse(&mut data)?,
+                split_interval_power: Parse::parse(&mut data)?,
+                split_avg_drag_factor: Parse::parse(&mut data)?,
+                split_interval_number: Parse::parse(&mut data)?,
+                erg_machine_type: Parse::parse(&mut data)?,
             }));
         }
 

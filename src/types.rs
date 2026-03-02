@@ -383,15 +383,16 @@ pub struct GameId(pub u8);
 #[derive(Default, Debug, Serialize, Deserialize, Clone, Copy)]
 pub struct GameScore(pub u16);
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
+#[derive(Default, Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum SampleRate {
-    Slow,    // 0x0001
+    Slow,    // 0x0000
+    #[default]
     Default, // 0x0001
     Fast,    // 0x0002
     Fastest, // 0x0003
 }
-#[derive(Debug)]
+#[derive(Debug, Clone, Default)]
 pub struct ForceCurveData(pub Vec<Force>);
 
 #[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
@@ -440,7 +441,7 @@ pub enum ErgModelType {
     TypeA,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
+#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy, Default)]
 #[repr(u8)]
 pub enum ErgMachineType {
     /// Model D, static type (0).
@@ -486,6 +487,7 @@ pub enum ErgMachineType {
     /// Multi-erg row type (224).
     MultiergRow = 224,
     /// Multi-erg ski type (225).
+    #[default]
     MultiergSki,
     /// Multi-erg bike type (226).
     MultiergBike,
@@ -493,10 +495,11 @@ pub enum ErgMachineType {
     Num,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
+#[derive(Default, Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum WorkoutType {
     /// JustRow, no splits (0).
+    #[default]
     JustrowNoSplits,
     /// JustRow, splits (1).
     JustrowSplits,
@@ -526,10 +529,11 @@ pub enum WorkoutType {
     Num,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
+#[derive(Default, Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum IntervalType {
     /// Time interval type (0).
+    #[default]
     Time,
     /// Distance interval type (1).
     Dist,
@@ -553,10 +557,11 @@ pub enum IntervalType {
     None = 255,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
+#[derive(Default, Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum WorkoutState {
     /// Wait to begin state (0).
+    #[default]
     WaitToBegin,
     /// Workout row state (1).
     WorkoutRow,
@@ -586,19 +591,21 @@ pub enum WorkoutState {
     Rearm,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
+#[derive(Default, Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum RowingState {
     /// Inactive (0).
+    #[default]
     Inactive,
     /// Active (1).
     Active,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
+#[derive(Default, Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum StrokeState {
     /// FW to reach min speed state (0).
+    #[default]
     WaitingForWheelToReachMinSpeedState,
     /// FW to accelerate state (1).
     WaitingForWheelToAccelerateState,
@@ -610,9 +617,10 @@ pub enum StrokeState {
     RecoveryState,
 }
 
-#[derive(Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
+#[derive(Default, Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum WorkoutDurationType {
+    #[default]
     Time = 0,
     Calories = 0x40,
     Distance = 0x80,

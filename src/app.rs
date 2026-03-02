@@ -12,7 +12,8 @@ use crate::services::{Pm5, Pm5Data, Rowing, ServiceData, ServiceDataError};
 const PERIPHERAL_NAME_MATCH_PREFIX_FILTER: &str = "PM5";
 
 type Receiver = mpsc::UnboundedReceiver<Result<Pm5Data, ServiceDataError>>;
-type CmdSender = mpsc::UnboundedSender<Vec<u8>>;
+pub type CmdSender = mpsc::UnboundedSender<Vec<u8>>;
+pub type CmdReceiver = mpsc::UnboundedReceiver<Vec<u8>>;
 
 pub struct App {}
 
