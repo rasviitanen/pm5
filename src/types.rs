@@ -189,6 +189,10 @@ impl Time {
         self.0 .0 as f32 / 100.0
     }
 
+    pub fn as_millis(self) -> u32 {
+        self.0 .0 * 10
+    }
+
     pub fn as_hours_mins_secs(self) -> (u32, u32, u32) {
         let total_secs = self.0 .0 / 100;
         let hours = total_secs / 3600;
@@ -386,10 +390,10 @@ pub struct GameScore(pub u16);
 #[derive(Default, Debug, Eq, PartialEq, TryFromPrimitive, Clone, Copy)]
 #[repr(u8)]
 pub enum SampleRate {
-    Slow,    // 0x0000
+    Slow, // 0x0000
     #[default]
     Default, // 0x0001
-    Fast,    // 0x0002
+    Fast, // 0x0002
     Fastest, // 0x0003
 }
 #[derive(Debug, Clone, Default)]

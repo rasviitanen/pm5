@@ -435,6 +435,19 @@ impl WorkoutStorage {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Snapshot {
+    pub elapsed_time: Time,
+    pub distance: Distance,
+    pub speed: Speed,
+    pub stroke_rate: StrokeRate,
+    pub heart_rate: HeartRate,
+    pub current_pace: Pace,
+    pub average_pace: Pace,
+    pub rest_distance: Distance,
+    pub rest_time: Time,
+}
+
 pub struct Workout {
     pub id: Uuid,
     df: DataFrame,
@@ -460,6 +473,74 @@ impl Workout {
             .collect())
     }
 
+    pub fn snapshots(
+        &self,
+    ) -> polars::prelude::PolarsResult<Vec<Snapshot>> {
+        use polars::prelude::*;
+ 
+        let df = self
+            .df
+            .clone()
+            .lazy()
+            .select([
+                col(columns::ELAPSED_TIME),
+                col(columns::DISTANCE),
+                col(columns::SPEED),
+                col(columns::STROKE_RATE),
+                col(columns::HEART_RATE),
+                col(columns::CURRENT_PACE),
+                col(columns::AVERAGE_PACE),
+                col(columns::REST_DISTANCE),
+                col(columns::REST_TIME),
+            ])
+            // Drop rows where all status columns are null (general-status-only rows)
+            .filter(col(columns::SPEED).is_not_null())
+            .sort([columns::ELAPSED_TIME], Default::default())
+            .collect()?;
+ 
+        let elapsed = df.column(columns::ELAPSED_TIME)?.u32()?;
+        let distance = df.column(columns::DISTANCE)?.u32()?;
+        let speed = df.column(columns::SPEED)?.u16()?;
+        let stroke_rate = df.column(columns::STROKE_RATE)?.u8()?;
+        let heart_rate = df.column(columns::HEART_RATE)?.u8()?;
+        let current_pace = df.column(columns::CURRENT_PACE)?.u16()?;
+        let average_pace = df.column(columns::AVERAGE_PACE)?.u16()?;
+        let rest_distance = df.column(columns::REST_DISTANCE)?.u16()?;
+        let rest_time = df.column(columns::REST_TIME)?.u32()?;
+ 
+        let mut snapshots = Vec::with_capacity(df.height());
+        for i in 0..df.height() {
+            let (Some(et), Some(dist), Some(sp), Some(sr), Some(hr), Some(cp), Some(ap), Some(rd), Some(rt)) = (
+                elapsed.get(i),
+                distance.get(i),
+                speed.get(i),
+                stroke_rate.get(i),
+                heart_rate.get(i),
+                current_pace.get(i),
+                average_pace.get(i),
+                rest_distance.get(i),
+                rest_time.get(i),
+            ) else {
+                continue;
+            };
+ 
+            snapshots.push(Snapshot {
+                elapsed_time: Time::new(et),
+                distance: Distance(U24::new(dist)),
+                speed: Speed(sp),
+                stroke_rate: StrokeRate(sr),
+                heart_rate: HeartRate(hr),
+                current_pace: Pace(cp),
+                average_pace: Pace(ap),
+                rest_distance: Distance::new(rd as u32),
+                rest_time: Time::new(rt),
+            });
+        }
+ 
+        Ok(snapshots)
+    }
+
+    
     pub fn heart_rate(&self) -> PolarsResult<Vec<(Time, HeartRate)>> {
         let df = self
             .df
@@ -718,6 +799,10 @@ impl Default for Profile {
         }
     }
 }
+
+
+
+
 
 #[cfg(test)]
 mod tests {

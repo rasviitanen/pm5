@@ -348,25 +348,27 @@ impl ServiceData for Rowing {
                 interval_rest_time: Parse::parse(&mut data)?,
                 interval_rest_distance: Parse::parse(&mut data)?,
                 split_interval_type: Parse::parse(&mut data)?,
-                split_interval_number: Parse::parse(&mut data)? 
+                split_interval_number: Parse::parse(&mut data)?,
             }));
         }
 
         if Rowing::AdditionalSplitIntervalData.id() == uuid {
-            return Ok(RowingData::AdditionalSplitIntervalData(AdditionalSplitIntervalData {
-                elapsed_time: Parse::parse(&mut data)?,
-                split_interval_avg_stroke_rate: Parse::parse(&mut data)?,
-                split_interval_work_heartrate: Parse::parse(&mut data)?,
-                split_interval_rest_heartrate: Parse::parse(&mut data)?,
-                split_interval_avg_pace: Parse::parse(&mut data)?,
-                split_interval_total_calories: Parse::parse(&mut data)?,
-                split_interval_avg_calories: Parse::parse(&mut data)?,
-                split_interval_speed: Parse::parse(&mut data)?,
-                split_interval_power: Parse::parse(&mut data)?,
-                split_avg_drag_factor: Parse::parse(&mut data)?,
-                split_interval_number: Parse::parse(&mut data)?,
-                erg_machine_type: Parse::parse(&mut data)?,
-            }));
+            return Ok(RowingData::AdditionalSplitIntervalData(
+                AdditionalSplitIntervalData {
+                    elapsed_time: Parse::parse(&mut data)?,
+                    split_interval_avg_stroke_rate: Parse::parse(&mut data)?,
+                    split_interval_work_heartrate: Parse::parse(&mut data)?,
+                    split_interval_rest_heartrate: Parse::parse(&mut data)?,
+                    split_interval_avg_pace: Parse::parse(&mut data)?,
+                    split_interval_total_calories: Parse::parse(&mut data)?,
+                    split_interval_avg_calories: Parse::parse(&mut data)?,
+                    split_interval_speed: Parse::parse(&mut data)?,
+                    split_interval_power: Parse::parse(&mut data)?,
+                    split_avg_drag_factor: Parse::parse(&mut data)?,
+                    split_interval_number: Parse::parse(&mut data)?,
+                    erg_machine_type: Parse::parse(&mut data)?,
+                },
+            ));
         }
 
         Err(ServiceDataError::Id)
